@@ -53,6 +53,13 @@ $ cd ~/build
 $ cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCEF_ROOT=/path/to/cef/release /path/to/cef-pdf
 $ ninja
 ```
+### Running headless
+
+libcef has dependencies on X11, and requires an X11 server, so wen running headless where an X11 server is not available, you will want to run this under xvfb.
+
+```
+xvfb-run cef-pdf --server
+```
 
 ### License
 

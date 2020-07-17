@@ -55,7 +55,7 @@ $ ninja
 ```
 ### Running headless
 
-libcef has dependencies on X11, and requires an X11 server, so wen running headless where an X11 server is not available, you will want to run this under xvfb.
+libcef has dependencies on X11, and requires an X11 server, so when running headless where an X11 server is not available, you will want to run this under xvfb.
 
 ```
 xvfb-run cef-pdf --server

@@ -291,8 +291,11 @@ void Session::ParseRequestHeaders()
             m_request.pageMargin = match[2];
         } else if (stringsEqual(match[1], http::headers::pdfOptions)) {
             m_request.pdfOptions = match[2];
+        } else if (stringsEqual(match[1], http::headers::headerTitle)) {
+            m_request.headerTitle = match[2];
+        } else if (stringsEqual(match[1], http::headers::footerURL)) {
+            m_request.footerURL = match[2];
         }
-
         it = match[0].second;
     }
 }
@@ -336,7 +339,7 @@ std::string Session::GetAboutReply()
     content += "\"" + http::headers::location + "\", ";
     content += "\"" + http::headers::pageSize + "\", ";
     content += "\"" + http::headers::pageMargin + "\", ";
-    content += "\"" + http::headers::pdfOptions + "(landscape|backgrounds)\"";
+    content += "\"" + http::headers::pdfOptions + "(landscape|backgrounds|headerfooter)\"";
     content += "]}";
 
     return content;
@@ -390,10 +393,12 @@ void Session::HandlePDF(const std::string& fileName)
         if (std::string::npos != m_request.pdfOptions.find("landscape")) {
             job->SetLandscape(true);
         }
-
         if (std::string::npos != m_request.pdfOptions.find("backgrounds")) {
             job->SetBackgrounds(true);
         }
+        if (std::string::npos != m_request.pdfOptions.find("headerfooter")) {
+            job->SetHeaderFooterEnabled(true);
+        }        
     }
 
     job->SetCallback(std::bind(

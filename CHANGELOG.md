@@ -1,5 +1,8 @@
 Changelog
 ===
+### 0.3.4.1 (2020-08-19)
+* Expose LIBCEF support for page headers and footers 
+
 ### 0.3.4 (2018-03-20)
 * Building with CEF 3.3325.1750.gaabe4c4 / Chromium 65.0.3325.146 (Windows, Linux & OS X, 64bit)
 * Bug fixes

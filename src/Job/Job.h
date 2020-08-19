@@ -61,6 +61,23 @@ public:
 
     void SetScale(int scale);
 
+    void SetHeaderFooterEnabled(bool flag = true)
+    {
+        m_headerFooterEnabled = flag;
+    }
+    
+    void SetHeaderFooterTitle(const CefString& title) 
+    {
+        m_headerFooterEnabled = true;
+        m_headerFooterTitle = title;
+    }
+
+    void SetHeaderFooterUrl(const CefString& url) 
+    {
+        m_headerFooterEnabled = true;
+        m_headerFooterUrl = url;
+    }
+
     // Get prepared PDF setting for CEF
     CefPdfPrintSettings GetCefPdfPrintSettings() const;
 
@@ -81,7 +98,9 @@ private:
     Status m_status;
     Callback m_callback;
     int m_scale;
-
+    bool m_headerFooterEnabled;
+    CefString m_headerFooterTitle;
+    CefString m_headerFooterUrl;
     // Include the default reference counting implementation.
     IMPLEMENT_REFCOUNTING(Job);
 };

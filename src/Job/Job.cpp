@@ -11,7 +11,10 @@ Job::Job() :
     m_backgrounds(false),
     m_status(Job::Status::PENDING),
     m_callback(),
-    m_scale(100)
+    m_scale(100),
+    m_headerFooterEnabled(false),
+    m_headerFooterTitle(),
+    m_headerFooterUrl()
 {
     SetPageSize(cefpdf::constants::pageSize);
     SetPageMargin("default");
@@ -59,7 +62,12 @@ CefPdfPrintSettings Job::GetCefPdfPrintSettings() const
     pdfSettings.margin_right = m_pageMargin.right;
     pdfSettings.margin_bottom = m_pageMargin.bottom;
     pdfSettings.margin_left = m_pageMargin.left;
-
+    if( m_headerFooterEnabled) 
+    {
+        pdfSettings.header_footer_enabled = true;
+		CefString(&pdfSettings.header_footer_title).FromString(m_headerFooterTitle);
+		CefString(&pdfSettings.header_footer_url).FromString(m_headerFooterUrl);
+    }
     return pdfSettings;
 }
 

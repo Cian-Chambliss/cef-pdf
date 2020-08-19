@@ -35,6 +35,8 @@ namespace headers {
     const std::string pageSize    = "PDF-Page-Size";
     const std::string pageMargin  = "PDF-Page-Margin";
     const std::string pdfOptions  = "PDF-Options";
+    const std::string headerTitle  = "PDF-Header-Title";
+    const std::string footerURL  = "PDF-Footer-URL";
 } // namespace headers
 
 struct Header {
@@ -57,6 +59,8 @@ struct Request {
     std::string pageSize;
     std::string pageMargin;
     std::string pdfOptions;
+    std::string headerTitle;
+    std::string footerURL;
 };
 
 struct Response {

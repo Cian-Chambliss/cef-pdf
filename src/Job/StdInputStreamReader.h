@@ -23,9 +23,9 @@ public:
 
     virtual std::size_t Read(void* ptr, std::size_t size, std::size_t n) override;
 
-    virtual int Seek(int64 offset, int whence) override;
+    virtual int Seek(int64_t offset, int whence) override;
 
-    virtual int64 Tell() override;
+    virtual int64_t Tell() override;
 
 private:
     // Include the default reference counting implementation.

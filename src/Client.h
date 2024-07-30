@@ -144,10 +144,10 @@ public:
         bool is_redirect
     ) override;
 
-    virtual void OnRenderProcessTerminated(
-        CefRefPtr<CefBrowser> browser,
-        CefRequestHandler::TerminationStatus status
-    ) override;
+    virtual void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+        TerminationStatus status,
+        int error_code,
+        const CefString& error_string) override;
 
 private:
     void CreateBrowsers(unsigned int browserCount = 0);

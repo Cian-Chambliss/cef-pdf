@@ -8,6 +8,7 @@
 #include "include/base/cef_logging.h"
 #include "include/wrapper/cef_helpers.h"
 #include "include/base/cef_bind.h"
+#include "include/base/cef_callback.h"
 #include "include/wrapper/cef_closure_task.h"
 
 #include <thread>
@@ -34,7 +35,7 @@ Client::Client() :
 
     m_browserSettings.windowless_frame_rate = 1;
     CefString(&m_browserSettings.default_encoding).FromString(constants::encoding);
-    m_browserSettings.plugins = STATE_DISABLED;
+    //m_browserSettings.plugins = STATE_DISABLED;
     m_browserSettings.javascript_close_windows = STATE_DISABLED;
     m_delay = 0;
 }
@@ -100,7 +101,7 @@ void Client::CreateBrowsers(unsigned int browserCount)
     while (m_pendingBrowsersCount > 0 && m_browsersCount <= constants::maxProcesses) {
         --m_pendingBrowsersCount;
         ++m_browsersCount;
-        CefBrowserHost::CreateBrowser(m_windowInfo, this, "", m_browserSettings, NULL,NULL);
+        CefBrowserHost::CreateBrowser(m_windowInfo, this, "", m_browserSettings, nullptr,nullptr);
     }
 }
 
@@ -230,7 +231,7 @@ void Client::OnBeforeClose(CefRefPtr<CefBrowser> browser)
     --m_browsersCount;
 
     if (0 == m_browsersCount && m_stopAfterLastJob) {
-        CefPostDelayedTask(TID_UI, base::Bind(&Client::Stop, this), 50);
+        CefPostDelayedTask(TID_UI, base::BindOnce(&Client::Stop, this), 50);
     } else {
         CreateBrowsers();
     }
@@ -265,7 +266,7 @@ void Client::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
     if (frame->IsMain()) {
         if (httpStatusCode == 200 && m_delay > 0) {
             DLOG(INFO) << "Client::OnLoadEnd - waiting for " << m_delay << "ms before generating PDF";
-            CefPostDelayedTask(TID_UI, base::Bind(&Client::Process, this, browser), m_delay);
+            CefPostDelayedTask(TID_UI, base::BindOnce(&Client::Process, this, browser), m_delay);
         }
         else
             m_jobManager->Process(browser, httpStatusCode);
@@ -317,10 +318,11 @@ bool Client::OnBeforeBrowse(
     return true;
 }
 
-void Client::OnRenderProcessTerminated(
-    CefRefPtr<CefBrowser> browser,
-    CefRequestHandler::TerminationStatus status
-) {
+void Client::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+    TerminationStatus status,
+    int error_code,
+    const CefString& error_string)
+{
     DLOG(INFO) << "Client::OnRenderProcessTerminated";
 }
 

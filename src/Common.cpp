@@ -213,7 +213,7 @@ PageMargin getPageMargin(const CefString& str)
     if ("default" == input) {
         pageMargin.type = PDF_PRINT_MARGIN_DEFAULT;
     } else if ("minimum" == input) {
-        pageMargin.type = PDF_PRINT_MARGIN_MINIMUM;
+        pageMargin.type = PDF_PRINT_MARGIN_NONE; // PDF_PRINT_MARGIN_MINIMUM; - this option went away in the latest API
     } else if ("none" == input) {
         pageMargin.type = PDF_PRINT_MARGIN_NONE;
     } else { // Custom

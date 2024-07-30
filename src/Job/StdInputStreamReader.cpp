@@ -22,7 +22,7 @@ std::size_t StdInputStreamReader::Read(void* ptr, std::size_t size, std::size_t 
     return std::cin.gcount();
 }
 
-int StdInputStreamReader::Seek(int64 offset, int whence)
+int StdInputStreamReader::Seek(int64_t offset, int whence)
 {
     std::ios_base::seekdir dir;
 
@@ -43,7 +43,7 @@ int StdInputStreamReader::Seek(int64 offset, int whence)
     return std::cin.good() ? 0 : 1;
 }
 
-int64 StdInputStreamReader::Tell()
+int64_t StdInputStreamReader::Tell()
 {
     return std::cin.tellg();
 }

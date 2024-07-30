@@ -50,12 +50,12 @@ CefPdfPrintSettings Job::GetCefPdfPrintSettings() const
 {
     CefPdfPrintSettings pdfSettings;
 
-    pdfSettings.scale_factor = m_scale;
-    pdfSettings.backgrounds_enabled = m_backgrounds;
+    pdfSettings.scale = (double) m_scale / 100.0;
+    pdfSettings.print_background = m_backgrounds;
     pdfSettings.landscape = (m_pageOrientation == PageOrientation::LANDSCAPE);
 
-    pdfSettings.page_width  = m_pageSize.width * 1000;
-    pdfSettings.page_height = m_pageSize.height * 1000;
+    pdfSettings.paper_width  = (double)m_pageSize.width / 25.4;
+    pdfSettings.paper_height = (double)m_pageSize.height / 25.4;
 
     pdfSettings.margin_type = m_pageMargin.type;
     pdfSettings.margin_top = m_pageMargin.top;
@@ -64,9 +64,9 @@ CefPdfPrintSettings Job::GetCefPdfPrintSettings() const
     pdfSettings.margin_left = m_pageMargin.left;
     if( m_headerFooterEnabled) 
     {
-        pdfSettings.header_footer_enabled = true;
-		CefString(&pdfSettings.header_footer_title).FromString(m_headerFooterTitle);
-		CefString(&pdfSettings.header_footer_url).FromString(m_headerFooterUrl);
+        pdfSettings.display_header_footer = true;
+		CefString(&pdfSettings.header_template).FromString(m_headerFooterTitle);
+		CefString(&pdfSettings.header_template).FromString(m_headerFooterUrl);
     }
     return pdfSettings;
 }

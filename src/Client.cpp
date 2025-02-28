@@ -31,6 +31,7 @@ Client::Client() :
     m_settings.windowless_rendering_enabled = true;
     m_settings.command_line_args_disabled = true;
 
+
     m_windowInfo.windowless_rendering_enabled = true;
 
     m_browserSettings.windowless_frame_rate = 1;
@@ -50,6 +51,13 @@ void Client::Initialize(const CefMainArgs& mainArgs)
     DCHECK(!m_initialized);
 
     m_initialized = true;
+
+    char _cachePath[1024+100];
+    GetTempPathA( sizeof(_cachePath)-100, _cachePath );
+    char *endOfPath = _cachePath+strlen(_cachePath);
+    sprintf( endOfPath , "CEF_PDF" );
+    CefString(&m_settings.cache_path).FromASCII(_cachePath);
+
     CefInitialize(mainArgs, m_settings, this, NULL);
 }
 

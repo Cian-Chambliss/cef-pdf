@@ -46,18 +46,28 @@ int Client::ExecuteSubProcess(const CefMainArgs& mainArgs)
     return CefExecuteProcess(mainArgs, this, NULL);
 }
 
-void Client::Initialize(const CefMainArgs& mainArgs)
+void Client::Initialize(const CefMainArgs& mainArgs,CefRefPtr<CefCommandLine> commandLine)
 {
     DCHECK(!m_initialized);
 
     m_initialized = true;
 
-    char _cachePath[1024+100];
-    GetTempPathA( sizeof(_cachePath)-100, _cachePath );
-    char *endOfPath = _cachePath+strlen(_cachePath);
-    sprintf( endOfPath , "CEF_PDF" );
-    CefString(&m_settings.cache_path).FromASCII(_cachePath);
-
+    std::string profile;
+    if (commandLine->HasSwitch("profile")) {
+        profile = commandLine->GetSwitchValue("profile").ToString();
+    }
+    if( profile.empty() )
+    {
+        char _cachePath[1024+100];
+        GetTempPathA( sizeof(_cachePath)-100, _cachePath );
+        char *endOfPath = _cachePath+strlen(_cachePath);
+        sprintf( endOfPath , "CEF_PDF" );
+        CefString(&m_settings.cache_path).FromASCII(_cachePath);
+    }
+    else
+    {
+         CefString(&m_settings.cache_path).FromString(profile);
+    }
     CefInitialize(mainArgs, m_settings, this, NULL);
 }
 

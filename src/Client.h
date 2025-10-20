@@ -31,7 +31,7 @@ public:
     int ExecuteSubProcess(const CefMainArgs&);
 
     // Initialize CEF
-    void Initialize(const CefMainArgs&);
+    void Initialize(const CefMainArgs&,CefRefPtr<CefCommandLine>);
 
     // De-initialize CEF
     void Shutdown();

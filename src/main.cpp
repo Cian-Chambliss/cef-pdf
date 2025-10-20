@@ -56,6 +56,7 @@ void printHelp(std::string name)
     std::cout << "  --host=<host>         If starting server, specify ip address to bind to." << std::endl;
     std::cout << "                        Default is " << cefpdf::constants::serverHost << std::endl;
     std::cout << "  --port=<port>         Specify server port number. Default is " << cefpdf::constants::serverPort << std::endl;
+    std::cout << "  --profile=<folder>    Specify a custom folder for the chrome profile" << std::endl; 
     std::cout << std::endl;
     std::cout << "Output:" << std::endl;
     std::cout << "  PDF file name to create. Default is to write binary data to standard output." << std::endl;
@@ -264,8 +265,7 @@ int main(int argc, char* argv[])
         printSizes();
         return 0;
     }
-
-    app->Initialize(mainArgs);
+    app->Initialize(mainArgs,commandLine);
     app->SetDisableJavaScript(!commandLine->HasSwitch("javascript"));
 
     return commandLine->HasSwitch("server") ? runServer(app, commandLine) : runJob(app, commandLine);

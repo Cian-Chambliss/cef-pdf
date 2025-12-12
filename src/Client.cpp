@@ -146,6 +146,7 @@ void Client::OnBeforeCommandLineProcessing(const CefString& process_type, CefRef
     //command_line->AppendSwitch("disable-gpu-compositing");
     command_line->AppendSwitch("disable-extensions");
     command_line->AppendSwitch("disable-pinch");
+    command_line->AppendSwitch("do-not-de-elevate");
 };
 
 CefRefPtr<CefRenderProcessHandler> Client::GetRenderProcessHandler()

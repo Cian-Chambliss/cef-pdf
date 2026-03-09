@@ -20,6 +20,12 @@
                        If omitted some default margin is applied.
       --javascript     Enable JavaScript.
       --backgrounds    Print with backgrounds. Default is without.
+      --scale=<%>      Scale the output. Default is 100.
+      --delay=<ms>     Wait after page load before creating PDF. Default is 0.
+      --wait-signal    Wait for JavaScript signal before creating PDF.
+      --wait-signal-timeout=<ms> Timeout for wait-signal before printing. Default is 0 (no timeout).
+      --viewwidth=<px> Width of viewport. Default is 128.
+      --viewheight=<px> Height of viewport. Default is 128.
 
     Server options:
       --server         Start HTTP server
@@ -29,6 +35,27 @@
 
     Output:
       PDF file name to create. Default is to write binary data to standard output.
+
+### JavaScript wait signal
+
+When running with `--wait-signal` (and `--javascript`), cef-pdf will wait until the
+page calls `window.cefpdf.signalReady()` before printing the PDF. Optionally add
+`--wait-signal-timeout=<ms>` to force printing after a timeout.
+
+Example:
+
+```
+<script>
+  window.addEventListener("load", async () => {
+    // Perform async rendering work here
+    await fetch("/data").then(r => r.json());
+    // Signal readiness for printing
+    if (window.cefpdf && typeof window.cefpdf.signalReady === "function") {
+      window.cefpdf.signalReady();
+    }
+  });
+</script>
+```
 
 ### HTTP server usage
 
@@ -53,6 +80,34 @@ $ cd ~/build
 $ cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCEF_ROOT=/path/to/cef/release /path/to/cef-pdf
 $ ninja
 ```
+
+Windows 64 bit
+
+note: \dev\cef\x64 had the current 64 bit distro download whose folder structure should look similar to this:
+
+```
++cmake
++Debug
++Doxyfile
++include
++libcef_dll
++Release
++Resources
++sample
++tests
+cef_paths.gypi
+cef_paths2.gypi
+LICENSE.txt
+CMakeLists.txt
+README.md
+README.txt
+```
+
+```
+cmake . -G "Visual Studio 17 2022" -A x64  -DCEF_ROOT=/dev/3rdParty/libcef/cef3/7444.176/src -D_HAS_ITERATOR_LEVEL=0 D=_HAS_ITERATOR_DEBUGGING=0
+```
+
+
 ### Running headless
 
 libcef has dependencies on X11, and requires an X11 server, so when running headless where an X11 server is not available, you will want to run this under xvfb.

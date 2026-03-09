@@ -45,6 +45,8 @@ void printHelp(std::string name)
     std::cout << "  --backgrounds         Print with backgrounds. Default is without." << std::endl;
     std::cout << "  --scale=<%>           Scale the output. Default is 100." << std::endl;
     std::cout << "  --delay=<ms>          Wait after page load before creating PDF. Default is 0." << std::endl;
+    std::cout << "  --wait-signal         Wait for JavaScript signal before creating PDF." << std::endl;
+    std::cout << "  --wait-signal-timeout=<ms>  Timeout for wait-signal before printing. Default is 0 (no timeout)." << std::endl;
     std::cout << "  --viewwidth=<px>      Width of viewport. Default is 128." << std::endl;
     std::cout << "  --viewheight=<px>     Height of viewport. Default is 128." << std::endl;
     std::cout << "  --headerfooter        PDF rendered with a page header and footer." << std::endl;
@@ -161,6 +163,14 @@ int runJob(CefRefPtr<cefpdf::Client> app, CefRefPtr<CefCommandLine> commandLine)
 
         if (commandLine->HasSwitch("delay")) {
             app->SetDelay(std::atoi(commandLine->GetSwitchValue("delay").ToString().c_str()));
+        }
+
+        if (commandLine->HasSwitch("wait-signal")) {
+            app->SetWaitForSignal(true);
+        }
+
+        if (commandLine->HasSwitch("wait-signal-timeout")) {
+            app->SetWaitSignalTimeout(std::atoi(commandLine->GetSwitchValue("wait-signal-timeout").ToString().c_str()));
         }
 
         if (commandLine->HasSwitch("viewwidth")) {

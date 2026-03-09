@@ -83,10 +83,19 @@ public:
         m_delay = delay;
     }
 
+    void SetWaitForSignal(bool flag) {
+        m_waitForSignal = flag;
+    }
+
+    void SetWaitSignalTimeout(int timeoutMs) {
+        m_waitSignalTimeout = timeoutMs < 0 ? 0 : timeoutMs;
+    }
+
     void SetViewWidth(int viewWidth);
     void SetViewHeight(int viewHeight);
 
     void Process(CefRefPtr<CefBrowser> browser);
+    void ProcessOnce(CefRefPtr<CefBrowser> browser);
 
     // CefApp methods:
     virtual CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override;
@@ -164,6 +173,9 @@ private:
     bool m_running;
     bool m_stopAfterLastJob;
     int  m_delay;
+    bool m_waitForSignal;
+    int  m_waitSignalTimeout;
+    std::set<int> m_signalBrowsers;
 
     CefRefPtr<CefPrintHandler> m_printHandler;
     CefRefPtr<RenderHandler> m_renderHandler;

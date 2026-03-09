@@ -191,6 +191,43 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CEF_ROOT}/cmake")
 # Execute FindCEF.cmake which must exist in CMAKE_MODULE_PATH.
 find_package(CEF REQUIRED)
 
+if(OS_WINDOWS)
+    set(CEF_ROOT_PARENT "${CEF_ROOT}")
+    get_filename_component(CEF_ROOT_PARENT "${CEF_ROOT_PARENT}" DIRECTORY)
+
+    if(NOT EXISTS "${CEF_LIB_RELEASE}")
+        if(EXISTS "${CEF_ROOT}/bin/x64/Release/libcef.lib")
+            set(CEF_LIB_RELEASE "${CEF_ROOT}/bin/x64/Release/libcef.lib")
+            set(CEF_BINARY_DIR "${CEF_ROOT}/bin/x64/Release")
+            set(CEF_RESOURCE_DIR "${CEF_ROOT}/bin/x64/Release")
+        elseif(EXISTS "${CEF_ROOT}/bin/Release/libcef.lib")
+            set(CEF_LIB_RELEASE "${CEF_ROOT}/bin/Release/libcef.lib")
+            set(CEF_BINARY_DIR "${CEF_ROOT}/bin/Release")
+            set(CEF_RESOURCE_DIR "${CEF_ROOT}/bin/Release")
+        elseif(EXISTS "${CEF_ROOT_PARENT}/bin/x64/Release/libcef.lib")
+            set(CEF_LIB_RELEASE "${CEF_ROOT_PARENT}/bin/x64/Release/libcef.lib")
+            set(CEF_BINARY_DIR "${CEF_ROOT_PARENT}/bin/x64/Release")
+            set(CEF_RESOURCE_DIR "${CEF_ROOT_PARENT}/bin/x64/Release")
+        elseif(EXISTS "${CEF_ROOT_PARENT}/bin/Release/libcef.lib")
+            set(CEF_LIB_RELEASE "${CEF_ROOT_PARENT}/bin/Release/libcef.lib")
+            set(CEF_BINARY_DIR "${CEF_ROOT_PARENT}/bin/Release")
+            set(CEF_RESOURCE_DIR "${CEF_ROOT_PARENT}/bin/Release")
+        endif()
+    endif()
+
+    if(NOT EXISTS "${CEF_LIB_DEBUG}")
+        if(EXISTS "${CEF_ROOT}/bin/x64/Debug/libcef.lib")
+            set(CEF_LIB_DEBUG "${CEF_ROOT}/bin/x64/Debug/libcef.lib")
+        elseif(EXISTS "${CEF_ROOT}/bin/Debug/libcef.lib")
+            set(CEF_LIB_DEBUG "${CEF_ROOT}/bin/Debug/libcef.lib")
+        elseif(EXISTS "${CEF_ROOT_PARENT}/bin/x64/Debug/libcef.lib")
+            set(CEF_LIB_DEBUG "${CEF_ROOT_PARENT}/bin/x64/Debug/libcef.lib")
+        elseif(EXISTS "${CEF_ROOT_PARENT}/bin/Debug/libcef.lib")
+            set(CEF_LIB_DEBUG "${CEF_ROOT_PARENT}/bin/Debug/libcef.lib")
+        endif()
+    endif()
+endif()
+
 
 #
 # Define CEF-based targets.
@@ -205,7 +242,18 @@ set(USE_SANDBOX OFF)
 set(USE_ATL OFF)
 
 include_directories("asio")
-add_definitions(-DASIO_STANDALONE -DASIO_NO_TYPEID)
+add_definitions(
+    -DASIO_STANDALONE
+    -DASIO_NO_TYPEID
+    -DASIO_HAS_STD_ARRAY=1
+    -DASIO_HAS_STD_TYPE_TRAITS=1
+    -DASIO_HAS_CSTDINT=1
+    -DASIO_HAS_STD_CHRONO=1
+    -DASIO_HAS_STD_SHARED_PTR=1
+    -DASIO_HAS_STD_ADDRESSOF=1
+    -D_HAS_ITERATOR_DEBUGGING=0
+    -D_ITERATOR_DEBUG_LEVEL=0
+)
 
 # Include application targets.
 # Comes from the <target>/CMakeLists.txt file in the current directory.

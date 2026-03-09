@@ -1,6 +1,8 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+
+
 #include "include/internal/cef_types.h"
 
 #include <string>
@@ -18,7 +20,7 @@ std::string getProcessId();
 
 namespace constants {
     // cef-pdf version number
-    const std::string version = "0.3.4.1";
+    const std::string version = "0.3.4.2";
     // Internal scheme
     const std::string scheme = "cefpdf";
     // Default page size
@@ -42,6 +44,8 @@ namespace constants {
     // JavaScript functions
     const std::string jsQueryFunction = "cefPdfQuery";
     const std::string jsCancelFunction = "cefPdfCancel";
+    // JavaScript signal message name
+    const std::string waitSignalMessage = "cefpdf.wait_signal";
 }
 
 struct PageSize

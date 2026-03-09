@@ -39,6 +39,8 @@ Client::Client() :
     //m_browserSettings.plugins = STATE_DISABLED;
     m_browserSettings.javascript_close_windows = STATE_DISABLED;
     m_delay = 0;
+    m_waitForSignal = false;
+    m_waitSignalTimeout = 0;
 }
 
 int Client::ExecuteSubProcess(const CefMainArgs& mainArgs)
@@ -213,6 +215,14 @@ bool Client::OnProcessMessageReceived(
 
     CEF_REQUIRE_UI_THREAD();
 
+    if (message->GetName() == constants::waitSignalMessage) {
+        if (m_waitForSignal && frame->IsMain()) {
+            ProcessOnce(browser);
+        }
+
+        return true;
+    }
+
     return true;
 }
 
@@ -247,6 +257,8 @@ void Client::OnBeforeClose(CefRefPtr<CefBrowser> browser)
 
     CEF_REQUIRE_UI_THREAD();
 
+    m_signalBrowsers.erase(browser->GetIdentifier());
+
     --m_browsersCount;
 
     if (0 == m_browsersCount && m_stopAfterLastJob) {
@@ -265,12 +277,27 @@ void Client::OnLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> fram
         << " with url: " << frame->GetURL().ToString();
 
     CEF_REQUIRE_UI_THREAD();
+
+    if (m_waitForSignal && frame->IsMain()) {
+        m_signalBrowsers.erase(browser->GetIdentifier());
+    }
 }
 
 void Client::Process(CefRefPtr<CefBrowser> browser)
 {
    DLOG(INFO) << "Client::Process - generating PDF";
    m_jobManager->Process(browser, 200);
+}
+
+void Client::ProcessOnce(CefRefPtr<CefBrowser> browser)
+{
+    int browserId = browser->GetIdentifier();
+    if (m_signalBrowsers.find(browserId) != m_signalBrowsers.end()) {
+        return;
+    }
+
+    m_signalBrowsers.insert(browserId);
+    Process(browser);
 }
 
 void Client::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int httpStatusCode)
@@ -283,6 +310,15 @@ void Client::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
     CEF_REQUIRE_UI_THREAD();
 
     if (frame->IsMain()) {
+        if (httpStatusCode == 200 && m_waitForSignal) {
+            DLOG(INFO) << "Client::OnLoadEnd - waiting for JavaScript signal before generating PDF";
+            if (m_waitSignalTimeout > 0) {
+                DLOG(INFO) << "Client::OnLoadEnd - wait-signal timeout set to " << m_waitSignalTimeout << "ms";
+                CefPostDelayedTask(TID_UI, base::BindOnce(&Client::ProcessOnce, this, browser), m_waitSignalTimeout);
+            }
+            return;
+        }
+
         if (httpStatusCode == 200 && m_delay > 0) {
             DLOG(INFO) << "Client::OnLoadEnd - waiting for " << m_delay << "ms before generating PDF";
             CefPostDelayedTask(TID_UI, base::BindOnce(&Client::Process, this, browser), m_delay);

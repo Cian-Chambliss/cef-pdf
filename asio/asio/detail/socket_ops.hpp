@@ -59,8 +59,13 @@ enum
 typedef unsigned char state_type;
 
 struct noop_deleter { void operator()(void*) {} };
-typedef shared_ptr<void> shared_cancel_token_type;
-typedef weak_ptr<void> weak_cancel_token_type;
+#if defined(ASIO_HAS_STD_SHARED_PTR)
+typedef std::shared_ptr<void> shared_cancel_token_type;
+typedef std::weak_ptr<void> weak_cancel_token_type;
+#else
+typedef boost::shared_ptr<void> shared_cancel_token_type;
+typedef boost::weak_ptr<void> weak_cancel_token_type;
+#endif
 
 #if !defined(ASIO_WINDOWS_RUNTIME)
 

@@ -1,5 +1,8 @@
 Changelog
 ===
+### 0.3.4.2 (2020-08-19)
+* Added logic to support a signal.
+
 ### 0.3.4.1 (2020-08-19)
 * Expose LIBCEF support for page headers and footers 
 

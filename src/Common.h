@@ -46,6 +46,8 @@ namespace constants {
     const std::string jsCancelFunction = "cefPdfCancel";
     // JavaScript signal message name
     const std::string waitSignalMessage = "cefpdf.wait_signal";
+    const std::string requestDomHtmlMessage = "cefpdf.request_dom_html";
+    const std::string domHtmlMessage = "cefpdf.dom_html";
 }
 
 struct PageSize
@@ -83,6 +85,10 @@ std::string reserveTempFile();
 std::string loadTempFile(const std::string&, bool remove = true);
 
 bool deleteTempFile(const std::string&);
+
+bool writeTextFile(const std::string&, const std::string&);
+
+std::string stripScriptsFromHtml(const std::string&);
 
 std::string formatDate(const char* format = "%a, %d %h %Y %T GMT", std::time_t* arg = nullptr);
 

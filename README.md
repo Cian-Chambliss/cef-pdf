@@ -24,6 +24,8 @@
       --delay=<ms>     Wait after page load before creating PDF. Default is 0.
       --wait-signal    Wait for JavaScript signal before creating PDF.
       --wait-signal-timeout=<ms> Timeout for wait-signal before printing. Default is 0 (no timeout).
+      --savehtml=<path> Save generated DOM HTML before creating PDF.
+      --staticonly     Remove <script> tags from saved HTML snapshot.
       --viewwidth=<px> Width of viewport. Default is 128.
       --viewheight=<px> Height of viewport. Default is 128.
 
@@ -41,6 +43,28 @@
 When running with `--wait-signal` (and `--javascript`), cef-pdf will wait until the
 page calls `window.cefpdf.signalReady()` before printing the PDF. Optionally add
 `--wait-signal-timeout=<ms>` to force printing after a timeout.
+
+Use `--savehtml=<path>` to save a snapshot of the generated DOM HTML (for example,
+after JavaScript modifies the page) right before the PDF is created.
+
+Add `--staticonly` together with `--savehtml` to strip `<script>` tags from the
+saved HTML snapshot. Using `--staticonly` without `--savehtml` returns an error.
+
+When `--savehtml` is enabled, cef-pdf logs snapshot diagnostics to the console,
+including request/response status, HTML byte count, and write success/failure.
+
+JavaScript `console.log`, `console.warn`, and `console.error` messages from the page
+are also forwarded to the terminal with a `js-console:` prefix.
+
+Examples:
+
+```bash
+# Save final DOM snapshot and PDF
+cef-pdf --javascript --wait-signal --savehtml=out.html --url=https://example.com out.pdf
+
+# Save static-only snapshot (scripts removed) and PDF
+cef-pdf --javascript --wait-signal --savehtml=out.html --staticonly --url=https://example.com out.pdf
+```
 
 Example:
 

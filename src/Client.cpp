@@ -9,8 +9,10 @@
 #include "include/wrapper/cef_helpers.h"
 #include "include/base/cef_bind.h"
 #include "include/base/cef_callback.h"
+#include "include/cef_values.h"
 #include "include/wrapper/cef_closure_task.h"
 
+#include <iostream>
 #include <thread>
 
 namespace cefpdf {
@@ -41,6 +43,8 @@ Client::Client() :
     m_delay = 0;
     m_waitForSignal = false;
     m_waitSignalTimeout = 0;
+    m_saveHtmlPath.clear();
+    m_saveHtmlStaticOnly = false;
 }
 
 int Client::ExecuteSubProcess(const CefMainArgs& mainArgs)
@@ -190,6 +194,11 @@ CefRefPtr<CefLifeSpanHandler> Client::GetLifeSpanHandler()
     return this;
 }
 
+CefRefPtr<CefDisplayHandler> Client::GetDisplayHandler()
+{
+    return this;
+}
+
 CefRefPtr<CefLoadHandler> Client::GetLoadHandler()
 {
     return this;
@@ -223,7 +232,80 @@ bool Client::OnProcessMessageReceived(
         return true;
     }
 
+    if (message->GetName() == constants::domHtmlMessage) {
+        if (frame->IsMain()) {
+            std::string html;
+            std::string snapshotError;
+            auto args = message->GetArgumentList();
+            if (args && args->GetSize() > 0 && args->GetType(0) == VTYPE_STRING) {
+                html = args->GetString(0).ToString();
+            }
+            if (args && args->GetSize() > 1 && args->GetType(1) == VTYPE_STRING) {
+                snapshotError = args->GetString(1).ToString();
+            }
+
+            std::clog
+                << "savehtml: DOM snapshot received"
+                << " (bytes=" << html.size() << ")"
+                << std::endl;
+
+            if (!snapshotError.empty()) {
+                std::cerr << "savehtml: renderer warning: " << snapshotError << std::endl;
+            }
+
+            if (!m_saveHtmlPath.empty()) {
+                if (m_saveHtmlStaticOnly) {
+                    const std::size_t originalSize = html.size();
+                    html = stripScriptsFromHtml(html);
+                    std::clog
+                        << "savehtml: stripped scripts"
+                        << " (bytes=" << originalSize
+                        << " -> " << html.size() << ")"
+                        << std::endl;
+                }
+
+                if (!writeTextFile(m_saveHtmlPath, html)) {
+                    DLOG(INFO) << "Client::OnProcessMessageReceived - failed to save HTML to " << m_saveHtmlPath;
+                    std::cerr << "savehtml: failed to write file: " << m_saveHtmlPath << std::endl;
+                } else {
+                    std::clog << "savehtml: wrote file: " << m_saveHtmlPath << std::endl;
+                }
+            }
+
+            if (html.empty()) {
+                std::cerr << "savehtml: warning - DOM snapshot is empty" << std::endl;
+            }
+
+            m_jobManager->Process(browser, 200);
+        }
+
+        return true;
+    }
+
     return true;
+}
+
+bool Client::OnConsoleMessage(
+    CefRefPtr<CefBrowser> browser,
+    cef_log_severity_t level,
+    const CefString& message,
+    const CefString& source,
+    int line
+)
+{
+    const std::string prefix = "js-console";
+    const std::string text = message.ToString();
+    const std::string file = source.ToString();
+
+    if (level == LOGSEVERITY_ERROR || level == LOGSEVERITY_FATAL) {
+        std::cerr << prefix << ": error: " << text << " (" << file << ":" << line << ")" << std::endl;
+    } else if (level == LOGSEVERITY_WARNING) {
+        std::cerr << prefix << ": warn: " << text << " (" << file << ":" << line << ")" << std::endl;
+    } else {
+        std::clog << prefix << ": " << text << " (" << file << ":" << line << ")" << std::endl;
+    }
+
+    return false;
 }
 
 
@@ -258,6 +340,7 @@ void Client::OnBeforeClose(CefRefPtr<CefBrowser> browser)
     CEF_REQUIRE_UI_THREAD();
 
     m_signalBrowsers.erase(browser->GetIdentifier());
+    m_saveHtmlBrowsers.erase(browser->GetIdentifier());
 
     --m_browsersCount;
 
@@ -281,12 +364,29 @@ void Client::OnLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> fram
     if (m_waitForSignal && frame->IsMain()) {
         m_signalBrowsers.erase(browser->GetIdentifier());
     }
+
+    if (frame->IsMain()) {
+        m_saveHtmlBrowsers.erase(browser->GetIdentifier());
+    }
 }
 
 void Client::Process(CefRefPtr<CefBrowser> browser)
 {
-   DLOG(INFO) << "Client::Process - generating PDF";
-   m_jobManager->Process(browser, 200);
+    DLOG(INFO) << "Client::Process - generating PDF";
+
+    if (!m_saveHtmlPath.empty()) {
+        const int browserId = browser->GetIdentifier();
+        if (m_saveHtmlBrowsers.find(browserId) == m_saveHtmlBrowsers.end()) {
+            std::clog << "savehtml: requesting DOM snapshot" << std::endl;
+            m_saveHtmlBrowsers.insert(browserId);
+            CefRefPtr<CefProcessMessage> message =
+                CefProcessMessage::Create(constants::requestDomHtmlMessage);
+            browser->GetMainFrame()->SendProcessMessage(PID_RENDERER, message);
+            return;
+        }
+    }
+
+    m_jobManager->Process(browser, 200);
 }
 
 void Client::ProcessOnce(CefRefPtr<CefBrowser> browser)

@@ -375,6 +375,26 @@ bool deleteTempFile(const std::string& path)
     return 0 == std::remove(path.c_str());
 }
 
+bool writeTextFile(const std::string& path, const std::string& content)
+{
+    std::ofstream output(path, std::ofstream::binary | std::ofstream::trunc);
+    if (!output.good()) {
+        return false;
+    }
+
+    output.write(content.data(), content.size());
+    return output.good();
+}
+
+std::string stripScriptsFromHtml(const std::string& html)
+{
+    static const std::regex re(
+        R"(<script\b[^>]*>(?:[\s\S]*?)</script\s*>|<script\b[^>]*/\s*>)",
+        std::regex_constants::icase
+    );
+    return std::regex_replace(html, re, "");
+}
+
 std::string formatDate(const char* format, std::time_t* arg)
 {
     std::time_t t = std::time(arg);

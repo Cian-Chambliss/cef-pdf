@@ -47,6 +47,8 @@ void printHelp(std::string name)
     std::cout << "  --delay=<ms>          Wait after page load before creating PDF. Default is 0." << std::endl;
     std::cout << "  --wait-signal         Wait for JavaScript signal before creating PDF." << std::endl;
     std::cout << "  --wait-signal-timeout=<ms>  Timeout for wait-signal before printing. Default is 0 (no timeout)." << std::endl;
+    std::cout << "  --savehtml=<path>     Save generated DOM HTML before creating PDF." << std::endl;
+    std::cout << "  --staticonly          Remove <script> tags from saved HTML snapshot." << std::endl;
     std::cout << "  --viewwidth=<px>      Width of viewport. Default is 128." << std::endl;
     std::cout << "  --viewheight=<px>     Height of viewport. Default is 128." << std::endl;
     std::cout << "  --headerfooter        PDF rendered with a page header and footer." << std::endl;
@@ -171,6 +173,23 @@ int runJob(CefRefPtr<cefpdf::Client> app, CefRefPtr<CefCommandLine> commandLine)
 
         if (commandLine->HasSwitch("wait-signal-timeout")) {
             app->SetWaitSignalTimeout(std::atoi(commandLine->GetSwitchValue("wait-signal-timeout").ToString().c_str()));
+        }
+
+        if (commandLine->HasSwitch("savehtml")) {
+            std::string saveHtmlPath = commandLine->GetSwitchValue("savehtml").ToString();
+            if (saveHtmlPath.empty()) {
+                throw std::string("savehtml output path is empty");
+            }
+
+            app->SetSaveHtmlPath(saveHtmlPath);
+        }
+
+        if (commandLine->HasSwitch("staticonly")) {
+            if (!commandLine->HasSwitch("savehtml")) {
+                throw std::string("staticonly requires savehtml");
+            }
+
+            app->SetSaveHtmlStaticOnly(true);
         }
 
         if (commandLine->HasSwitch("viewwidth")) {

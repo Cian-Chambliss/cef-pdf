@@ -90,6 +90,55 @@ bool RenderProcessHandler::OnProcessMessageReceived(
     DLOG(INFO) << "RenderProcessHandler::OnProcessMessageReceived";
     CEF_REQUIRE_RENDERER_THREAD();
 
+    if (message->GetName() == constants::requestDomHtmlMessage) {
+        CefRefPtr<CefFrame> targetFrame = frame;
+        if (!targetFrame && browser) {
+            targetFrame = browser->GetMainFrame();
+        }
+
+        if (!targetFrame || !targetFrame->IsMain()) {
+            DLOG(INFO) << "savehtml: skipped DOM snapshot - no main frame";
+            return true;
+        }
+
+        std::string html;
+        std::string error;
+        CefRefPtr<CefV8Context> context = targetFrame->GetV8Context();
+        if (!context) {
+            error = "main frame has no V8 context";
+        } else if (context->Enter()) {
+            CefRefPtr<CefV8Value> global = context->GetGlobal();
+            CefRefPtr<CefV8Value> document = global ? global->GetValue("document") : nullptr;
+            CefRefPtr<CefV8Value> documentElement =
+                (document && document->IsObject()) ? document->GetValue("documentElement") : nullptr;
+            CefRefPtr<CefV8Value> outerHtml =
+                (documentElement && documentElement->IsObject()) ? documentElement->GetValue("outerHTML") : nullptr;
+
+            if (outerHtml && outerHtml->IsString()) {
+                html = outerHtml->GetStringValue().ToString();
+            } else if (!document || !document->IsObject()) {
+                error = "document object is not available";
+            } else if (!documentElement || !documentElement->IsObject()) {
+                error = "document.documentElement is not available";
+            } else {
+                error = "document.documentElement.outerHTML is not a string";
+            }
+
+            context->Exit();
+        } else {
+            error = "failed to enter V8 context";
+        }
+
+        DLOG(INFO) << "savehtml: renderer captured DOM bytes=" << html.size();
+
+        CefRefPtr<CefProcessMessage> response =
+            CefProcessMessage::Create(constants::domHtmlMessage);
+        response->GetArgumentList()->SetString(0, html);
+        response->GetArgumentList()->SetString(1, error);
+        targetFrame->SendProcessMessage(PID_BROWSER, response);
+        return true;
+    }
+
     //m_messageRouterRendererSide->OnProcessMessageReceived(browser, source_process, message);
     return true;
 }

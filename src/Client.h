@@ -17,6 +17,7 @@ namespace cefpdf {
 class Client : public CefApp,
                public CefBrowserProcessHandler,
                public CefClient,
+               public CefDisplayHandler,
                public CefLifeSpanHandler,
                public CefLoadHandler,
                public CefRequestHandler
@@ -91,6 +92,14 @@ public:
         m_waitSignalTimeout = timeoutMs < 0 ? 0 : timeoutMs;
     }
 
+    void SetSaveHtmlPath(const std::string& path) {
+        m_saveHtmlPath = path;
+    }
+
+    void SetSaveHtmlStaticOnly(bool enabled) {
+        m_saveHtmlStaticOnly = enabled;
+    }
+
     void SetViewWidth(int viewWidth);
     void SetViewHeight(int viewHeight);
 
@@ -110,6 +119,7 @@ public:
 
     // CefClient methods:
     virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override;
+    virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler() override;
     virtual CefRefPtr<CefLoadHandler> GetLoadHandler() override;
     virtual CefRefPtr<CefRenderHandler> GetRenderHandler() override;
     virtual CefRefPtr<CefRequestHandler> GetRequestHandler() override;
@@ -118,6 +128,15 @@ public:
         CefRefPtr<CefFrame> frame,
         CefProcessId source_process,
         CefRefPtr<CefProcessMessage> message
+    ) override;
+
+    // CefDisplayHandler methods:
+    virtual bool OnConsoleMessage(
+        CefRefPtr<CefBrowser> browser,
+        cef_log_severity_t level,
+        const CefString& message,
+        const CefString& source,
+        int line
     ) override;
 
     // CefLifeSpanHandler methods:
@@ -176,6 +195,9 @@ private:
     bool m_waitForSignal;
     int  m_waitSignalTimeout;
     std::set<int> m_signalBrowsers;
+    std::string m_saveHtmlPath;
+    bool m_saveHtmlStaticOnly;
+    std::set<int> m_saveHtmlBrowsers;
 
     CefRefPtr<CefPrintHandler> m_printHandler;
     CefRefPtr<RenderHandler> m_renderHandler;

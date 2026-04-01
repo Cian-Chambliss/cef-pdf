@@ -28,6 +28,9 @@
       --staticonly     Remove <script> tags from saved HTML snapshot.
       --viewwidth=<px> Width of viewport. Default is 128.
       --viewheight=<px> Height of viewport. Default is 128.
+      --dump-file-prefix=<path_prefix> (Windows only) Enable unhandled exception dumps.
+                       Prefix includes directory and file name prefix.
+      --max-dump-files=<n> (Windows only) Max number of dump files to keep. Default is 5.
 
     Server options:
       --server         Start HTTP server
@@ -37,6 +40,24 @@
 
     Output:
       PDF file name to create. Default is to write binary data to standard output.
+
+### Crash dumps (Windows)
+
+On Windows, you can enable dump file generation for unhandled exceptions:
+
+- `--dump-file-prefix=<path_prefix>` enables dump generation.
+  The prefix contains both the directory and the file name prefix.
+- `--max-dump-files=<n>` controls retention and defaults to `5`.
+
+Dump files are written as `<prefix>_YYYYMMDD_HHMMSS_mmm_<pid>.dmp`.
+Before writing a new dump, older matching dumps are deleted to stay within
+the configured maximum.
+
+Example:
+
+```powershell
+cef-pdf --dump-file-prefix=C:\temp\cef-pdf\crash --max-dump-files=10 --url=https://example.com out.pdf
+```
 
 ### JavaScript wait signal
 

@@ -10,6 +10,7 @@
 #if defined(OS_WIN)
 #include <io.h>
 #include <fcntl.h>
+#include "WindowsCrashDumps.h"
 #endif // OS_WIN
 
 void printSizes()
@@ -61,6 +62,11 @@ void printHelp(std::string name)
     std::cout << "                        Default is " << cefpdf::constants::serverHost << std::endl;
     std::cout << "  --port=<port>         Specify server port number. Default is " << cefpdf::constants::serverPort << std::endl;
     std::cout << "  --profile=<folder>    Specify a custom folder for the chrome profile" << std::endl; 
+#if defined(OS_WIN)
+    std::cout << "  --dump-file-prefix=<path_prefix>  Enable unhandled exception dumps (.dmp)." << std::endl;
+    std::cout << "                        Prefix includes directory and file name prefix." << std::endl;
+    std::cout << "  --max-dump-files=<n>  Max number of dump files to keep (default: 5)." << std::endl;
+#endif // OS_WIN
     std::cout << std::endl;
     std::cout << "Output:" << std::endl;
     std::cout << "  PDF file name to create. Default is to write binary data to standard output." << std::endl;
@@ -283,6 +289,27 @@ int main(int argc, char* argv[])
     commandLine->InitFromString(::GetCommandLine());
 #else
     commandLine->InitFromArgv(argc, argv);
+#endif // OS_WIN
+
+#if defined(OS_WIN)
+    int maxDumpFiles = 5;
+    if (commandLine->HasSwitch("max-dump-files")) {
+        maxDumpFiles = std::atoi(commandLine->GetSwitchValue("max-dump-files").ToString().c_str());
+        if (maxDumpFiles <= 0) {
+            std::cerr << "WARNING: max-dump-files must be greater than zero. Using default value 5." << std::endl;
+            maxDumpFiles = 5;
+        }
+    }
+
+    if (commandLine->HasSwitch("dump-file-prefix")) {
+        const std::string dumpFilePrefix = commandLine->GetSwitchValue("dump-file-prefix").ToString();
+        if (dumpFilePrefix.empty()) {
+            std::cerr << "ERROR: dump-file-prefix value is empty" << std::endl;
+            return 1;
+        }
+
+        cefpdf::ConfigureWindowsCrashDumps(dumpFilePrefix, maxDumpFiles);
+    }
 #endif // OS_WIN
 
     if (commandLine->HasSwitch("help") || commandLine->HasSwitch("h")) {

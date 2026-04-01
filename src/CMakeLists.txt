@@ -142,8 +142,13 @@ if(OS_WINDOWS)
     /subsystem:console
   )
 
+  list(APPEND CEF_EXE_LINKER_FLAGS_RELEASE
+    /DEBUG:FULL
+  )
+
   SET_EXECUTABLE_TARGET_PROPERTIES(${CEF_TARGET})
   target_link_libraries(${CEF_TARGET} libcef_lib libcef_dll_wrapper ${CEF_STANDARD_LIBS})
+  target_link_libraries(${CEF_TARGET} dbghelp)
 
   if(USE_SANDBOX)
     # Logical target used to link the cef_sandbox library.

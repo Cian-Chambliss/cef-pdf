@@ -152,6 +152,9 @@ README.txt
 cmake . -G "Visual Studio 17 2022" -A x64  -DCEF_ROOT=/dev/3rdParty/libcef/cef3/7444.176/src -D_HAS_ITERATOR_LEVEL=0 D=_HAS_ITERATOR_DEBUGGING=0
 ```
 
+```
+cmake . -G "Visual Studio 17 2022" -A Win32  -DCEF_ROOT=/dev/3rdParty/libcef/cef3/7444.176/src -D_HAS_ITERATOR_LEVEL=0 D=_HAS_ITERATOR_DEBUGGING=0
+```
 
 ### Running headless
 

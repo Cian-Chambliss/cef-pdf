@@ -26,7 +26,7 @@ Client::Client() :
     m_running(false),
     m_stopAfterLastJob(false),
     m_printHandler(new PrintHandler),
-    m_renderHandler(new RenderHandler),
+    m_renderHandler(new RenderHandler(m_jobManager)),
     m_renderProcessHandler(new RenderProcessHandler)
 {
     m_settings.no_sandbox = true;
@@ -148,8 +148,10 @@ void Client::OnBeforeCommandLineProcessing(const CefString& process_type, CefRef
         << " with process_type: " << process_type.ToString()
         << ", command_line: " << command_line->GetCommandLineString().ToString();
 
-    //command_line->AppendSwitch("disable-gpu");
-    //command_line->AppendSwitch("disable-gpu-compositing");
+    if (command_line->HasSwitch("disable-gpu")) {
+        command_line->AppendSwitch("disable-gpu");
+        command_line->AppendSwitch("disable-gpu-compositing");
+    }
     command_line->AppendSwitch("disable-extensions");
     command_line->AppendSwitch("disable-pinch");
     command_line->AppendSwitch("do-not-de-elevate");
@@ -225,7 +227,8 @@ bool Client::OnProcessMessageReceived(
     CEF_REQUIRE_UI_THREAD();
 
     if (message->GetName() == constants::waitSignalMessage) {
-        if (m_waitForSignal && frame->IsMain()) {
+        CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+        if (job && job->GetWaitForSignal() && frame->IsMain()) {
             ProcessOnce(browser);
         }
 
@@ -253,8 +256,9 @@ bool Client::OnProcessMessageReceived(
                 std::cerr << "savehtml: renderer warning: " << snapshotError << std::endl;
             }
 
-            if (!m_saveHtmlPath.empty()) {
-                if (m_saveHtmlStaticOnly) {
+            CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+            if (job && !job->GetSaveHtmlPath().empty()) {
+                if (job->GetSaveHtmlStaticOnly()) {
                     const std::size_t originalSize = html.size();
                     html = stripScriptsFromHtml(html);
                     std::clog
@@ -264,11 +268,11 @@ bool Client::OnProcessMessageReceived(
                         << std::endl;
                 }
 
-                if (!writeTextFile(m_saveHtmlPath, html)) {
-                    DLOG(INFO) << "Client::OnProcessMessageReceived - failed to save HTML to " << m_saveHtmlPath;
-                    std::cerr << "savehtml: failed to write file: " << m_saveHtmlPath << std::endl;
+                if (!writeTextFile(job->GetSaveHtmlPath(), html)) {
+                    DLOG(INFO) << "Client::OnProcessMessageReceived - failed to save HTML to " << job->GetSaveHtmlPath();
+                    std::cerr << "savehtml: failed to write file: " << job->GetSaveHtmlPath() << std::endl;
                 } else {
-                    std::clog << "savehtml: wrote file: " << m_saveHtmlPath << std::endl;
+                    std::clog << "savehtml: wrote file: " << job->GetSaveHtmlPath() << std::endl;
                 }
             }
 
@@ -361,7 +365,8 @@ void Client::OnLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> fram
 
     CEF_REQUIRE_UI_THREAD();
 
-    if (m_waitForSignal && frame->IsMain()) {
+    CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+    if (job && job->GetWaitForSignal() && frame->IsMain()) {
         m_signalBrowsers.erase(browser->GetIdentifier());
     }
 
@@ -372,9 +377,10 @@ void Client::OnLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> fram
 
 void Client::Process(CefRefPtr<CefBrowser> browser)
 {
-    DLOG(INFO) << "Client::Process - generating PDF";
+    DLOG(INFO) << "Client::Process - rendering output";
 
-    if (!m_saveHtmlPath.empty()) {
+    CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+    if (job && !job->GetSaveHtmlPath().empty()) {
         const int browserId = browser->GetIdentifier();
         if (m_saveHtmlBrowsers.find(browserId) == m_saveHtmlBrowsers.end()) {
             std::clog << "savehtml: requesting DOM snapshot" << std::endl;
@@ -397,7 +403,12 @@ void Client::ProcessOnce(CefRefPtr<CefBrowser> browser)
     }
 
     m_signalBrowsers.insert(browserId);
-    Process(browser);
+    CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+    if (job && job->GetDelay() > 0) {
+        CefPostDelayedTask(TID_UI, base::BindOnce(&Client::Process, this, browser), job->GetDelay());
+    } else {
+        Process(browser);
+    }
 }
 
 void Client::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int httpStatusCode)
@@ -410,19 +421,22 @@ void Client::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
     CEF_REQUIRE_UI_THREAD();
 
     if (frame->IsMain()) {
-        if (httpStatusCode == 200 && m_waitForSignal) {
-            DLOG(INFO) << "Client::OnLoadEnd - waiting for JavaScript signal before generating PDF";
-            if (m_waitSignalTimeout > 0) {
-                DLOG(INFO) << "Client::OnLoadEnd - wait-signal timeout set to " << m_waitSignalTimeout << "ms";
-                CefPostDelayedTask(TID_UI, base::BindOnce(&Client::ProcessOnce, this, browser), m_waitSignalTimeout);
+        CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+        if (httpStatusCode == 200 && job && job->GetWaitForSignal()) {
+            DLOG(INFO) << "Client::OnLoadEnd - waiting for JavaScript signal before rendering output";
+            if (job->GetWaitSignalTimeout() > 0) {
+                DLOG(INFO) << "Client::OnLoadEnd - wait-signal timeout set to " << job->GetWaitSignalTimeout() << "ms";
+                CefPostDelayedTask(TID_UI, base::BindOnce(&Client::ProcessOnce, this, browser), job->GetWaitSignalTimeout());
             }
             return;
         }
 
-        if (httpStatusCode == 200 && m_delay > 0) {
-            DLOG(INFO) << "Client::OnLoadEnd - waiting for " << m_delay << "ms before generating PDF";
-            CefPostDelayedTask(TID_UI, base::BindOnce(&Client::Process, this, browser), m_delay);
+        if (httpStatusCode == 200 && job && job->GetDelay() > 0) {
+            DLOG(INFO) << "Client::OnLoadEnd - waiting before rendering output";
+            CefPostDelayedTask(TID_UI, base::BindOnce(&Client::Process, this, browser), job->GetDelay());
         }
+        else if (httpStatusCode == 200)
+            Process(browser);
         else
             m_jobManager->Process(browser, httpStatusCode);
     }
@@ -479,6 +493,7 @@ void Client::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
     const CefString& error_string)
 {
     DLOG(INFO) << "Client::OnRenderProcessTerminated";
+    m_jobManager->Abort(browser, CefLoadHandler::ErrorCode::ERR_FAILED);
 }
 
 void Client::SetViewWidth(int viewWidth)

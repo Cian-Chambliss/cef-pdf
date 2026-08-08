@@ -1,5 +1,12 @@
 Changelog
 ===
+### 0.3.4.3 (2026-08-08)
+* Added PNG, JPEG, and BMP screenshot output for the CLI and HTTP server.
+* Added full-page and viewport capture, JPEG quality, opaque image backgrounds, and SVG request body support.
+* Made output format, viewport, input media type, and readiness settings job-specific for concurrent requests.
+* Preserved the shared delay, JavaScript ready signal, and DOM snapshot flow for all output formats.
+* Added `--disable-gpu` for headless systems without working GPU support.
+
 ### 0.3.4.2 (2020-08-19)
 * Added logic to support a signal.
 

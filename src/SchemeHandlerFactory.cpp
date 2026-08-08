@@ -23,7 +23,7 @@ CefRefPtr<CefResourceHandler> SchemeHandlerFactory::Create(
         return nullptr;
     }
 
-    return new CefStreamResourceHandler("text/html",  streamReader);
+    return new CefStreamResourceHandler(m_jobsManager->GetInputMediaType(browser), streamReader);
 }
 
 } // namespace cefpdf

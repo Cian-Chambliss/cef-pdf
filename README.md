@@ -1,6 +1,8 @@
 # cef-pdf
 
-`cef-pdf` is a command line utility (with embedded HTTP server as an optional mode) for creating PDF documents from HTML content. It uses Google Chrome browser's [Chromium Embedded Framework (CEF)](https://bitbucket.org/chromiumembedded/cef/overview) library for all it's internal work; loading urls, rendering HTML & CSS pages and PDF printing, therefore, it produces perfect, accurate, excellent quality PDF documents.
+`cef-pdf` is a command line utility, with an optional embedded HTTP server, for creating PDF documents and PNG, JPEG, or BMP browser screenshots from HTML and SVG content. It uses the [Chromium Embedded Framework (CEF)](https://bitbucket.org/chromiumembedded/cef/overview) for loading, rendering, PDF printing, and image capture.
+
+Image output is a browser screenshot, not a rasterized or paginated PDF. A `full` capture creates one potentially tall image of the document; a `viewport` capture creates one image at the configured viewport size.
 
 ### Usage:
 
@@ -11,6 +13,10 @@
       --url=<url>      URL to load, may be http, file, data, anything supported by Chromium.
       --file=<path>    File path to load using file:// scheme. May be relative to current directory.
       --stdin          Read content from standard input until EOF (Unix: Ctrl+D, Windows: Ctrl+Z).
+      --format=<type>  Output format: pdf, png, jpg, jpeg, or bmp.
+      --capture=<mode> Image capture mode: full (default) or viewport.
+      --quality=<0-100> JPEG quality. Default is 90.
+      --image-background=<color> JPEG/BMP background. Default is white.
       --size=<spec>    Size (format) of the paper: A3, B2.. or custom <width>x<height> in mm.
                        A4 is the default.
       --list-sizes     Show all defined page sizes.
@@ -26,11 +32,12 @@
       --wait-signal-timeout=<ms> Timeout for wait-signal before printing. Default is 0 (no timeout).
       --savehtml=<path> Save generated DOM HTML before creating PDF.
       --staticonly     Remove <script> tags from saved HTML snapshot.
-      --viewwidth=<px> Width of viewport. Default is 128.
-      --viewheight=<px> Height of viewport. Default is 128.
+      --viewwidth=<px> Width of viewport. Image default is 1280.
+      --viewheight=<px> Height of viewport. Image default is 720.
       --dump-file-prefix=<path_prefix> (Windows only) Enable unhandled exception dumps.
                        Prefix includes directory and file name prefix.
       --max-dump-files=<n> (Windows only) Max number of dump files to keep. Default is 5.
+      --disable-gpu     Disable GPU acceleration and GPU compositing for headless servers.
 
     Server options:
       --server         Start HTTP server
@@ -39,7 +46,20 @@
       --port=<port>    Specify server port number. Default is 9288
 
     Output:
-      PDF file name to create. Default is to write binary data to standard output.
+      Output file name. Format is inferred from .pdf, .png, .jpg, .jpeg, or .bmp.
+      Standard output defaults to PDF unless --format is supplied.
+
+### Image output
+
+PNG preserves transparent page regions. JPEG and uncompressed 24-bit BMP composite transparency onto `--image-background`, which defaults to white. PDF-only print settings such as paper size, margin, landscape, backgrounds, scale, and headers/footers are rejected for image output.
+
+```powershell
+cef-pdf --file=page.html page.png
+cef-pdf --file=graphic.svg graphic.png
+cef-pdf --quality=85 --url=https://example.com page.jpg
+cef-pdf --capture=viewport --viewwidth=1280 --viewheight=720 --url=https://example.com shot.bmp
+cef-pdf --format=png --stdin > page.png
+```
 
 ### Crash dumps (Windows)
 
@@ -111,7 +131,9 @@ Execute `cef-pdf` with `--server` option and visit `localhost:9288` with web bro
         "version": "0.2.0"
     }
 
-To receive a PDF, just make POST request to `localhost:9288/foo.pdf`with some HTML content as the request body. `foo` may be any name you choose, `.pdf` suffix is always required. The response will contain the PDF data, with `application/pdf` as the content type.
+POST HTML or SVG to a route ending in `.pdf`, `.png`, `.jpg`, `.jpeg`, or `.bmp`. Responses use `application/pdf`, `image/png`, `image/jpeg`, or `image/bmp` as appropriate. Send SVG bodies with `Content-Type: image/svg+xml`; HTML defaults to `text/html` for backward compatibility.
+
+Image requests accept `Image-Capture: full|viewport`, `Image-Viewport: 1280x720`, `Image-Quality: 0-100` for JPEG, and `Image-Background: #RRGGBB` for JPEG/BMP. PDF headers are rejected on image routes, and image headers are rejected on PDF routes.
 
 In addition to POSTing content inside the request body, special HTTP header `Content-Location` is supported, which should be an URL to some external content. `cef-pdf` will try to grab the content from this URL and use it just like it was the request's body.
 

@@ -66,9 +66,10 @@ private:
 
     void Handle();
 
-    void HandlePDF(const std::string&);
+    void HandleOutput(const std::string&, cefpdf::job::Job::OutputFormat);
 
     void OnResolve(CefRefPtr<cefpdf::job::Job>);
+    void CompleteResponse(CefRefPtr<cefpdf::job::Job>);
 
     bool ParseChunks(const std::string&);
 

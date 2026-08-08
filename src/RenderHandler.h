@@ -5,11 +5,13 @@
 
 namespace cefpdf {
 
+namespace job { class Manager; }
+
 class RenderHandler : public CefRenderHandler
 {
 
 public:
-    RenderHandler();
+    explicit RenderHandler(CefRefPtr<job::Manager> manager);
 
     void SetViewWidth(int viewWidth);
     void SetViewHeight(int viewHeight);
@@ -30,6 +32,7 @@ private:
 
     int m_viewWidth;
     int m_viewHeight;
+    CefRefPtr<job::Manager> m_manager;
    };
 
 } // namespace cefpdf

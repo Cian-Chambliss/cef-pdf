@@ -32,11 +32,16 @@ namespace headers {
     const std::string location    = "Content-Location";
     const std::string encoding    = "Transfer-Encoding";
     const std::string expect      = "Expect";
+    const std::string contentType = "Content-Type";
     const std::string pageSize    = "PDF-Page-Size";
     const std::string pageMargin  = "PDF-Page-Margin";
     const std::string pdfOptions  = "PDF-Options";
     const std::string headerTitle  = "PDF-Header-Title";
     const std::string footerURL  = "PDF-Footer-URL";
+    const std::string imageCapture = "Image-Capture";
+    const std::string imageViewport = "Image-Viewport";
+    const std::string imageQuality = "Image-Quality";
+    const std::string imageBackground = "Image-Background";
 } // namespace headers
 
 struct Header {
@@ -56,11 +61,16 @@ struct Request {
     bool chunked;
     std::string expect;
     std::string location;
+    std::string contentType;
     std::string pageSize;
     std::string pageMargin;
     std::string pdfOptions;
     std::string headerTitle;
     std::string footerURL;
+    std::string imageCapture;
+    std::string imageViewport;
+    std::string imageQuality;
+    std::string imageBackground;
 };
 
 struct Response {

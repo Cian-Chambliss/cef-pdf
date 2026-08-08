@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <queue>
+#include <mutex>
 
 namespace cefpdf {
 namespace job {
@@ -23,6 +24,10 @@ public:
     void Assign(CefRefPtr<CefBrowser> browser);
 
     CefRefPtr<CefStreamReader> GetStreamReader(CefRefPtr<CefBrowser> browser);
+
+    CefRefPtr<Job> GetJob(CefRefPtr<CefBrowser> browser);
+
+    CefString GetInputMediaType(CefRefPtr<CefBrowser> browser);
 
     void Process(CefRefPtr<CefBrowser> browser, int httpStatusCode);
 
@@ -42,6 +47,7 @@ private:
     };
 
     std::vector<BrowserJob> m_jobs;
+    mutable std::recursive_mutex m_mutex;
 
     typedef std::vector<BrowserJob>::iterator Iterator;
 

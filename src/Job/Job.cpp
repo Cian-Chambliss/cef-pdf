@@ -3,8 +3,40 @@
 namespace cefpdf {
 namespace job {
 
+const char* GetOutputExtension(Job::OutputFormat format)
+{
+    switch (format) {
+        case Job::OutputFormat::PNG: return "png";
+        case Job::OutputFormat::JPEG: return "jpg";
+        case Job::OutputFormat::BMP: return "bmp";
+        default: return "pdf";
+    }
+}
+
+const char* GetOutputMimeType(Job::OutputFormat format)
+{
+    switch (format) {
+        case Job::OutputFormat::PNG: return "image/png";
+        case Job::OutputFormat::JPEG: return "image/jpeg";
+        case Job::OutputFormat::BMP: return "image/bmp";
+        default: return "application/pdf";
+    }
+}
+
 Job::Job() :
     m_outputPath(),
+    m_outputFormat(OutputFormat::PDF),
+    m_captureMode(CaptureMode::FULL),
+    m_viewWidth(128),
+    m_viewHeight(128),
+    m_imageQuality(90),
+    m_imageBackground({255, 255, 255, 255}),
+    m_inputMediaType("text/html"),
+    m_delay(0),
+    m_waitForSignal(false),
+    m_waitSignalTimeout(0),
+    m_saveHtmlPath(),
+    m_saveHtmlStaticOnly(false),
     m_pageSize(),
     m_pageOrientation(PageOrientation::PORTRAIT),
     m_pageMargin(),
@@ -66,7 +98,7 @@ CefPdfPrintSettings Job::GetCefPdfPrintSettings() const
     {
         pdfSettings.display_header_footer = true;
 		CefString(&pdfSettings.header_template).FromString(m_headerFooterTitle);
-		CefString(&pdfSettings.header_template).FromString(m_headerFooterUrl);
+		CefString(&pdfSettings.footer_template).FromString(m_headerFooterUrl);
     }
     return pdfSettings;
 }

@@ -11,6 +11,7 @@
 #include <random>
 #include <sstream>
 #include <iomanip>
+#include <filesystem>
 
 #if !defined(OS_WIN)
 #include <sys/types.h> // pid_t
@@ -340,15 +341,15 @@ bool fileExists(const std::string& path)
 #endif // OS_WIN
 }
 
-std::string reserveTempFile()
+std::string reserveTempFile(const std::string& extension)
 {
     std::string letters = "9876543210ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(letters.begin(), letters.end(), g);
-    std::string path = constants::tmp + "cef_" + letters + "-" + constants::pid + ".pdf";
+    std::string path = constants::tmp + "cef_" + letters + "-" + constants::pid + "." + extension;
 
-    return fileExists(path) ? reserveTempFile() : path;
+    return fileExists(path) ? reserveTempFile(extension) : path;
 }
 
 std::string loadTempFile(const std::string& path, bool remove)
@@ -377,12 +378,22 @@ bool deleteTempFile(const std::string& path)
 
 bool writeTextFile(const std::string& path, const std::string& content)
 {
-    std::ofstream output(path, std::ofstream::binary | std::ofstream::trunc);
+    std::ofstream output(std::filesystem::u8path(path), std::ofstream::binary | std::ofstream::trunc);
     if (!output.good()) {
         return false;
     }
 
     output.write(content.data(), content.size());
+    return output.good();
+}
+
+bool writeBinaryFile(const std::string& path, const void* data, std::size_t size)
+{
+    std::ofstream output(std::filesystem::u8path(path), std::ofstream::binary | std::ofstream::trunc);
+    if (!output.good()) {
+        return false;
+    }
+    output.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
     return output.good();
 }
 

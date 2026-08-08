@@ -1,8 +1,9 @@
 #include "RenderHandler.h"
+#include "Job/Manager.h"
 
 namespace cefpdf {
 
-RenderHandler::RenderHandler() 
+RenderHandler::RenderHandler(CefRefPtr<job::Manager> manager) : m_manager(manager)
 {
     m_viewWidth = 128;
     m_viewHeight = 128;
@@ -24,10 +25,11 @@ void RenderHandler::SetViewHeight(int viewHeight)
 // -------------------------------------------------------------------------
 void RenderHandler::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect)
 {
+    CefRefPtr<job::Job> job = m_manager->GetJob(browser);
     rect.x = 0;
     rect.y = 0;
-    rect.width = m_viewWidth;
-    rect.height = m_viewHeight;
+    rect.width = job ? job->GetViewWidth() : m_viewWidth;
+    rect.height = job ? job->GetViewHeight() : m_viewHeight;
 }
 
 void RenderHandler::OnPaint(

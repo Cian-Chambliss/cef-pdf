@@ -15,9 +15,47 @@
 #include <ostream>
 #include <functional>
 #include <regex>
+#include <algorithm>
+#include <cctype>
 
 namespace cefpdf {
 namespace server {
+
+namespace {
+std::string Lower(std::string value)
+{
+    std::transform(value.begin(), value.end(), value.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return value;
+}
+
+bool ParseInteger(const std::string& value, int minimum, int maximum, int& result)
+{
+    try {
+        std::size_t consumed = 0;
+        long parsed = std::stol(value, &consumed);
+        if (consumed != value.size() || parsed < minimum || parsed > maximum) return false;
+        result = static_cast<int>(parsed);
+        return true;
+    } catch (...) { return false; }
+}
+
+bool ParseBackground(const std::string& input, job::Job::ImageBackground& color)
+{
+    const std::string value = Lower(input);
+    if (value == "white") { color = {255, 255, 255, 255}; return true; }
+    if (value == "black") { color = {0, 0, 0, 255}; return true; }
+    if (value.size() != 7 || value[0] != '#') return false;
+    try {
+        std::size_t consumed = 0;
+        unsigned long rgb = std::stoul(value.substr(1), &consumed, 16);
+        if (consumed != 6) return false;
+        color = {static_cast<uint8_t>(rgb >> 16), static_cast<uint8_t>(rgb >> 8),
+            static_cast<uint8_t>(rgb), 255};
+        return true;
+    } catch (...) { return false; }
+}
+}
 
 Session::Session(
     CefRefPtr<cefpdf::Client> client,
@@ -286,6 +324,8 @@ void Session::ParseRequestHeaders()
             m_request.expect = match[2];
         } else if (stringsEqual(match[1], http::headers::location)) {
             m_request.location = match[2];
+        } else if (stringsEqual(match[1], http::headers::contentType)) {
+            m_request.contentType = match[2];
         } else if (stringsEqual(match[1], http::headers::pageSize)) {
             m_request.pageSize = match[2];
         } else if (stringsEqual(match[1], http::headers::pageMargin)) {
@@ -296,6 +336,14 @@ void Session::ParseRequestHeaders()
             m_request.headerTitle = match[2];
         } else if (stringsEqual(match[1], http::headers::footerURL)) {
             m_request.footerURL = match[2];
+        } else if (stringsEqual(match[1], http::headers::imageCapture)) {
+            m_request.imageCapture = match[2];
+        } else if (stringsEqual(match[1], http::headers::imageViewport)) {
+            m_request.imageViewport = match[2];
+        } else if (stringsEqual(match[1], http::headers::imageQuality)) {
+            m_request.imageQuality = match[2];
+        } else if (stringsEqual(match[1], http::headers::imageBackground)) {
+            m_request.imageBackground = match[2];
         }
         it = match[0].second;
     }
@@ -314,14 +362,19 @@ void Session::Handle()
         Write();
     } else {
         // Parse url path
-        std::regex re("([^/]+\\.pdf)($|[^\\w])", std::regex_constants::icase);
+        std::regex re("^/(?:.*/)?([^/?]+\\.(pdf|png|jpg|jpeg|bmp))(?:\\?.*)?$", std::regex_constants::icase);
         std::smatch match;
 
         if (std::regex_search(m_request.url, match, re)) {
             if (m_request.method == "GET" && m_request.location.empty()) {
                 Write(http::statuses::badMethod);
             } else {
-                HandlePDF(match[1]);
+                const std::string extension = Lower(match[2]);
+                job::Job::OutputFormat format = job::Job::OutputFormat::PDF;
+                if (extension == "png") format = job::Job::OutputFormat::PNG;
+                else if (extension == "jpg" || extension == "jpeg") format = job::Job::OutputFormat::JPEG;
+                else if (extension == "bmp") format = job::Job::OutputFormat::BMP;
+                HandleOutput(match[1], format);
             }
         } else {
             Write(http::statuses::notFound);
@@ -341,6 +394,10 @@ std::string Session::GetAboutReply()
     content += "\"" + http::headers::pageSize + "\", ";
     content += "\"" + http::headers::pageMargin + "\", ";
     content += "\"" + http::headers::pdfOptions + "(landscape|backgrounds|headerfooter)\"";
+    content += ", \"" + http::headers::imageCapture + "\"";
+    content += ", \"" + http::headers::imageViewport + "\"";
+    content += ", \"" + http::headers::imageQuality + "\"";
+    content += ", \"" + http::headers::imageBackground + "\"";
     content += "]}";
 
     return content;
@@ -366,16 +423,85 @@ std::string Session::GetPageSizesReply()
     return content;
 }
 
-void Session::HandlePDF(const std::string& fileName)
+void Session::HandleOutput(const std::string& fileName, job::Job::OutputFormat format)
 {
-    m_response.SetHeader(http::headers::disposition, "inline; filename=\"" + fileName + "\"");
+    std::string safeName = fileName;
+    safeName.erase(std::remove_if(safeName.begin(), safeName.end(),
+        [](char c) { return c == '\r' || c == '\n' || c == '\"'; }), safeName.end());
+    m_response.SetHeader(http::headers::disposition, "inline; filename=\"" + safeName + "\"");
 
     CefRefPtr<cefpdf::job::Job> job;
 
     if (m_request.location.empty()) {
+        std::string mediaType = Lower(m_request.contentType);
+        const std::size_t separator = mediaType.find(';');
+        if (separator != std::string::npos) mediaType.erase(separator);
+        while (!mediaType.empty() && std::isspace(static_cast<unsigned char>(mediaType.back()))) mediaType.pop_back();
+        if (mediaType.empty()) mediaType = "text/html";
+        if (mediaType != "text/html" && mediaType != "image/svg+xml") {
+            Write(http::statuses::unsupported);
+            return;
+        }
         job = new cefpdf::job::Local(m_request.content);
+        job->SetInputMediaType(mediaType);
     } else {
         job = new cefpdf::job::Remote(m_request.location);
+    }
+    job->SetOutputFormat(format);
+
+    const bool imageOutput = format != cefpdf::job::Job::OutputFormat::PDF;
+    if (imageOutput && (!m_request.pageSize.empty() || !m_request.pageMargin.empty() ||
+        !m_request.pdfOptions.empty() || !m_request.headerTitle.empty() || !m_request.footerURL.empty())) {
+        Write(http::statuses::badRequest);
+        return;
+    }
+    if (!imageOutput && (!m_request.imageCapture.empty() || !m_request.imageViewport.empty() ||
+        !m_request.imageQuality.empty() || !m_request.imageBackground.empty())) {
+        Write(http::statuses::badRequest);
+        return;
+    }
+
+    if (imageOutput) {
+        job->SetViewWidth(1280);
+        job->SetViewHeight(720);
+        const std::string capture = Lower(m_request.imageCapture);
+        if (!capture.empty() && capture != "full" && capture != "viewport") {
+            Write(http::statuses::badRequest); return;
+        }
+        if (capture == "viewport") job->SetCaptureMode(cefpdf::job::Job::CaptureMode::VIEWPORT);
+
+        if (!m_request.imageViewport.empty()) {
+            std::smatch dimensions;
+            std::regex viewport("^([0-9]+)[xX]([0-9]+)$");
+            if (!std::regex_match(m_request.imageViewport, dimensions, viewport)) {
+                Write(http::statuses::badRequest); return;
+            }
+            int width = 0, height = 0;
+            if (!ParseInteger(dimensions[1], 1, 32767, width) ||
+                !ParseInteger(dimensions[2], 1, 32767, height)) {
+                Write(http::statuses::badRequest); return;
+            }
+            job->SetViewWidth(width); job->SetViewHeight(height);
+        }
+        if (static_cast<long long>(job->GetViewWidth()) * job->GetViewHeight() > 100000000LL) {
+            Write(http::statuses::badRequest); return;
+        }
+        if (!m_request.imageQuality.empty()) {
+            int quality = 0;
+            if (format != cefpdf::job::Job::OutputFormat::JPEG ||
+                !ParseInteger(m_request.imageQuality, 0, 100, quality)) {
+                Write(http::statuses::badRequest); return;
+            }
+            job->SetImageQuality(quality);
+        }
+        if (!m_request.imageBackground.empty()) {
+            cefpdf::job::Job::ImageBackground background;
+            if (format == cefpdf::job::Job::OutputFormat::PNG ||
+                !ParseBackground(m_request.imageBackground, background)) {
+                Write(http::statuses::badRequest); return;
+            }
+            job->SetImageBackground(background);
+        }
     }
 
     if (!m_request.pageSize.empty()) {
@@ -401,6 +527,8 @@ void Session::HandlePDF(const std::string& fileName)
             job->SetHeaderFooterEnabled(true);
         }        
     }
+    if (!m_request.headerTitle.empty()) job->SetHeaderFooterTitle(m_request.headerTitle);
+    if (!m_request.footerURL.empty()) job->SetHeaderFooterUrl(m_request.footerURL);
 
     job->SetCallback(std::bind(
         &Session::OnResolve,
@@ -413,12 +541,20 @@ void Session::HandlePDF(const std::string& fileName)
 
 void Session::OnResolve(CefRefPtr<cefpdf::job::Job> job)
 {
+    CefRefPtr<Session> self(this);
+    m_socket.get_io_service().post([self, job]() {
+        self->CompleteResponse(job);
+    });
+}
+
+void Session::CompleteResponse(CefRefPtr<cefpdf::job::Job> job)
+{
     if (!m_socket.is_open()) {
         return;
     }
 
     if (job->GetStatus() == cefpdf::job::Job::Status::SUCCESS) {
-        m_response.SetContent(loadTempFile(job->GetOutputPath()), "application/pdf");
+        m_response.SetContent(loadTempFile(job->GetOutputPath()), cefpdf::job::GetOutputMimeType(job->GetOutputFormat()));
     } else {
         m_response.SetStatus(http::statuses::error);
     }

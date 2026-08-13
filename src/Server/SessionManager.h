@@ -6,6 +6,7 @@
 #include "include/cef_base.h"
 
 #include <set>
+#include <chrono>
 
 namespace cefpdf {
 namespace server {
@@ -28,8 +29,18 @@ public:
 
     void StopAll();
 
+    // Update the last activity timestamp to now. Call on Start/Stop
+    void UpdateActivity();
+
+    // Return whether there are no active sessions
+    bool IsEmpty() const;
+
+    // Return the last activity time point
+    std::chrono::steady_clock::time_point LastActivity() const;
+
 private:
     std::set<CefRefPtr<Session>> m_sessions;
+    std::chrono::steady_clock::time_point m_lastActivity;
 
     // Include the default reference counting implementation.
     IMPLEMENT_REFCOUNTING(SessionManager);

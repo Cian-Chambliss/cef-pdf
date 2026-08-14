@@ -11,6 +11,7 @@
 #include <system_error> // std::error_code
 
 #include <asio.hpp>
+#include <chrono>
 
 namespace cefpdf {
 namespace server {
@@ -32,6 +33,10 @@ private:
 
     void OnConnection(std::error_code);
 
+    // Idle timer related
+    void ResetIdleTimer();
+    void OnIdleTimeout(const std::error_code&);
+
     CefRefPtr<cefpdf::Client> m_client;
 
     std::thread m_thread;
@@ -47,6 +52,10 @@ private:
     CefRefPtr<SessionManager> m_sessionManager;
 
     int m_counter;
+
+    asio::steady_timer m_idleTimer;
+
+    static constexpr std::chrono::seconds idleTimeout{30};
 
     // Include the default reference counting implementation.
     IMPLEMENT_REFCOUNTING(Server);

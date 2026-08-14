@@ -8,6 +8,7 @@
 #include <iostream>
 #include <utility>
 #include <functional>
+#include <chrono>
 
 namespace cefpdf {
 namespace server {
@@ -24,7 +25,8 @@ Server::Server(
     m_acceptor(m_ioService),
     m_socket(m_ioService),
     m_sessionManager(new SessionManager),
-    m_counter(0)
+    m_counter(0),
+    m_idleTimer(m_ioService)
 {
     m_signals.add(SIGINT);
     m_signals.add(SIGTERM);
@@ -70,6 +72,9 @@ void Server::Run()
               << std::endl;
 
     Listen();
+    // start/reset idle timer
+    ResetIdleTimer();
+
     m_ioService.run();
 
     CefPostTask(TID_UI, base::BindOnce(&cefpdf::Client::Stop, m_client));
@@ -94,6 +99,8 @@ void Server::OnSignal(std::error_code error, int signno)
 
     m_acceptor.close();
     m_sessionManager->CloseAll();
+    // Also stop io_service so Run() can exit promptly
+    m_ioService.stop();
 }
 
 void Server::OnConnection(std::error_code error)
@@ -109,10 +116,44 @@ void Server::OnConnection(std::error_code error)
         m_sessionManager->Start(
             new Session(m_client, m_sessionManager, std::move(m_socket))
         );
+        // Update activity and reset idle timer
+        m_sessionManager->UpdateActivity();
+        ResetIdleTimer();
+
         ++m_counter;
         DLOG(INFO) << "Got HTTP hit no. " << m_counter
                    << " from " << clientIp;
         Listen();
+    }
+}
+
+void Server::ResetIdleTimer()
+{
+    asio::error_code ec;
+    m_idleTimer.cancel(ec); // ignore cancel errors
+    m_idleTimer.expires_from_now(idleTimeout);
+    m_idleTimer.async_wait(std::bind(&Server::OnIdleTimeout, this, std::placeholders::_1));
+}
+
+void Server::OnIdleTimeout(const std::error_code& ec)
+{
+    if (ec == asio::error::operation_aborted) {
+        // Timer was reset or cancelled; nothing to do
+        return;
+    }
+
+    auto now = std::chrono::steady_clock::now();
+    auto last = m_sessionManager->LastActivity();
+
+    if (m_sessionManager->IsEmpty() &&
+        std::chrono::duration_cast<std::chrono::seconds>(now - last) >= idleTimeout) {
+        std::cout << "Idle timeout reached, shutting down HTTP server" << std::endl;
+        m_acceptor.close();
+        m_sessionManager->CloseAll();
+        m_ioService.stop();
+    } else {
+        // Not yet idle — restart timer
+        ResetIdleTimer();
     }
 }
 

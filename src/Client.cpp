@@ -37,7 +37,9 @@ Client::Client() :
 
     m_windowInfo.windowless_rendering_enabled = true;
 
-    m_browserSettings.windowless_frame_rate = 1;
+    // Screenshots require compositor frames; 1 FPS adds roughly one second to
+    // each DevTools capture stage even when streamed mode keeps CEF alive.
+    m_browserSettings.windowless_frame_rate = 60;
     CefString(&m_browserSettings.default_encoding).FromString(constants::encoding);
     //m_browserSettings.plugins = STATE_DISABLED;
     m_browserSettings.javascript_close_windows = STATE_DISABLED;

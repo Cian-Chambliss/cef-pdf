@@ -20,6 +20,17 @@ std::size_t Manager::Queue(CefRefPtr<Job> job)
     return m_jobsQueue.size();
 }
 
+void Manager::FailNext(const Job::Status& status)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (m_jobsQueue.empty()) return;
+
+    CefRefPtr<Job> job = m_jobsQueue.front();
+    m_jobsQueue.pop();
+    job->SetStatus(status);
+    job->ExecuteCallback();
+}
+
 CefRefPtr<CefStreamReader> Manager::GetStreamReader(CefRefPtr<CefBrowser> browser)
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);

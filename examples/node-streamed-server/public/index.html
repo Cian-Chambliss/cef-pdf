@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cef-pdf streamed workshop</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">Local renderer</p>
+      <h1>Stream a document to cef-pdf</h1>
+      <p class="lede">One long-lived worker, no uploads, and a one-time output link.</p>
+    </div>
+    <aside class="worker-card" aria-live="polite">
+      <span id="stateDot" class="state-dot"></span>
+      <div><strong id="workerState">Checking worker</strong><small id="workerDetail"></small></div>
+    </aside>
+  </header>
+
+  <main>
+    <form id="convertForm">
+      <section class="editor-panel">
+        <div class="section-heading">
+          <div><span>01</span><h2>Document</h2></div>
+          <label>Format
+            <select id="format" name="format">
+              <option value="pdf">PDF</option><option value="png">PNG</option>
+              <option value="jpeg">JPEG</option><option value="bmp">BMP</option>
+            </select>
+          </label>
+        </div>
+        <textarea id="html" name="html" spellcheck="false" required><!doctype html>
+<html>
+<style>
+  body { font-family: Georgia, serif; padding: 48px; color: #17352f; }
+  h1 { font-size: 44px; }
+  svg { width: 160px; }
+</style>
+<h1>Rendered through one streamed worker</h1>
+<p>Edit this complete document or paste an HTML fragment.</p>
+<svg viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100" height="40" rx="20" fill="#ef8354"/>
+</svg>
+</html></textarea>
+      </section>
+
+      <section class="controls-panel">
+        <div class="section-heading"><div><span>02</span><h2>Render controls</h2></div></div>
+        <details open>
+          <summary>Loading and viewport</summary>
+          <div class="control-grid">
+            <label>Delay, ms<input name="delay" type="number" min="0" value="0"></label>
+            <label>Viewport width<input name="viewportWidth" type="number" min="1" max="32767" value="1280"></label>
+            <label>Viewport height<input name="viewportHeight" type="number" min="1" max="32767" value="720"></label>
+            <label>Signal timeout, ms<input name="signalTimeout" type="number" min="0" value="0"></label>
+            <label class="check"><input name="waitSignal" type="checkbox"> Wait for <code>cefpdf.signalReady()</code></label>
+            <label class="check"><input name="saveHtml" type="checkbox"> Save DOM snapshot to a generated path</label>
+            <label class="check"><input name="staticOnly" type="checkbox"> Remove scripts from snapshot</label>
+          </div>
+        </details>
+
+        <details id="pdfControls" open>
+          <summary>PDF</summary>
+          <div class="control-grid">
+            <label>Page size<select name="pageSize"><option>A4</option><option>Letter</option><option>A3</option><option value="custom">Custom, mm</option></select></label>
+            <label>Custom width<input name="pageWidth" type="number" min="1" step="1" value="210"></label>
+            <label>Custom height<input name="pageHeight" type="number" min="1" step="1" value="297"></label>
+            <label>Margins, mm<input name="margins" value="10"></label>
+            <label>Scale, %<input name="scale" type="number" min="1" max="200" value="100"></label>
+            <label>Header title<input name="headerTitle" maxlength="200"></label>
+            <label>Footer URL<input name="footerUrl" maxlength="500"></label>
+            <label class="check"><input name="landscape" type="checkbox"> Landscape</label>
+            <label class="check"><input name="backgrounds" type="checkbox" checked> Print backgrounds</label>
+            <label class="check"><input name="headerFooter" type="checkbox"> Enable header and footer</label>
+          </div>
+        </details>
+
+        <details id="imageControls">
+          <summary>Image</summary>
+          <div class="control-grid">
+            <label>Capture<select name="capture"><option value="full">Full document</option><option value="viewport">Viewport</option></select></label>
+            <label>Image width<input name="imageWidth" type="number" min="1" max="32767" value="1280"></label>
+            <label>Image height<input name="imageHeight" type="number" min="1" max="32767" value="720"></label>
+            <label>JPEG quality<input name="quality" type="number" min="0" max="100" value="90"></label>
+            <label>JPEG/BMP background<input name="imageBackground" type="color" value="#ffffff"></label>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button id="submitButton" type="submit">Render output</button>
+          <div id="conversionStatus" role="status" aria-live="polite">Ready.</div>
+        </div>
+        <a id="downloadLink" class="download" hidden>Download output once</a>
+      </section>
+    </form>
+
+    <section class="settings-bar">
+      <div><span>03</span><h2>Worker lifetime</h2></div>
+      <label>Idle timeout, seconds<input id="idleTimeout" type="number" min="0" max="86400" step="1"></label>
+      <button id="saveSettings" type="button">Apply timeout</button>
+      <p>Set 0 to keep the worker alive until this Node server exits.</p>
+    </section>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>

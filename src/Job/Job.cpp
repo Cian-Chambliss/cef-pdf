@@ -90,10 +90,10 @@ CefPdfPrintSettings Job::GetCefPdfPrintSettings() const
     pdfSettings.paper_height = (double)m_pageSize.height / 25.4;
 
     pdfSettings.margin_type = m_pageMargin.type;
-    pdfSettings.margin_top = m_pageMargin.top;
-    pdfSettings.margin_right = m_pageMargin.right;
-    pdfSettings.margin_bottom = m_pageMargin.bottom;
-    pdfSettings.margin_left = m_pageMargin.left;
+    pdfSettings.margin_top = (double)m_pageMargin.top / 25.4;
+    pdfSettings.margin_right = (double)m_pageMargin.right / 25.4;
+    pdfSettings.margin_bottom = (double)m_pageMargin.bottom / 25.4;
+    pdfSettings.margin_left = (double)m_pageMargin.left / 25.4;
     if( m_headerFooterEnabled) 
     {
         pdfSettings.display_header_footer = true;

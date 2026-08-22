@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <defs>
+    <radialGradient id="glow" cx="35%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#f9c74f"/>
+      <stop offset="0.48" stop-color="#f9844a"/>
+      <stop offset="1" stop-color="#1d3557"/>
+    </radialGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="3" fill="#f1faee" opacity="0.55"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="8" dy="10" stdDeviation="5" flood-color="#10243e" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="640" height="360" fill="url(#glow)"/>
+  <rect width="640" height="360" fill="url(#dots)"/>
+  <g filter="url(#shadow)">
+    <path d="M110 265 L205 92 L300 265 Z" fill="#43aa8b" stroke="#f1faee" stroke-width="8"/>
+    <circle cx="370" cy="180" r="88" fill="#277da1" stroke="#f1faee" stroke-width="8"/>
+    <rect x="423" y="105" width="115" height="150" rx="16" fill="#f94144" stroke="#f1faee" stroke-width="8"/>
+  </g>
+  <text x="32" y="332" fill="#f1faee" font-family="Georgia, serif" font-size="22">standalone SVG streamed fixture</text>
+</svg>

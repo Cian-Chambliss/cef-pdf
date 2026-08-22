@@ -137,6 +137,47 @@ Image requests accept `Image-Capture: full|viewport`, `Image-Viewport: 1280x720`
 
 In addition to POSTing content inside the request body, special HTTP header `Content-Location` is supported, which should be an URL to some external content. `cef-pdf` will try to grab the content from this URL and use it just like it was the request's body.
 
+### Streamed server usage
+
+Use `--streamed` to keep one cef-pdf process alive while a parent process sends render requests through stdin. Responses are written only to stdout. Normal application and Chromium diagnostics are redirected to stderr so they cannot corrupt the protocol stream.
+
+Requests and responses use UTF-8 JSON with LSP-style framing:
+
+```text
+Content-Length: <UTF-8 byte count>\r\n
+Content-Type: application/json\r\n
+\r\n
+{"id":"page-1","command":"render",...}
+```
+
+Each render request requires a string or numeric `id`, an input, and an output path and format:
+
+```json
+{
+  "id": "page-1",
+  "command": "render",
+  "input": {
+    "type": "html",
+    "content": "<h1>Hello</h1><svg viewBox=\"0 0 10 10\">...</svg>"
+  },
+  "output": {
+    "path": "output/page.pdf",
+    "format": "pdf"
+  },
+  "options": {
+    "size": "A4",
+    "backgrounds": true,
+    "delay": 100
+  }
+}
+```
+
+Input types are `html`, `svg`, `url`, and `file`. Formats are `pdf`, `png`, `jpeg`, and `bmp`. The `options` object accepts the CLI equivalents in camel case: `size`, `margin`, `landscape`, `backgrounds`, `scale`, `delay`, `waitSignal`, `waitSignalTimeout`, `saveHtml`, `staticOnly`, `viewWidth`, `viewHeight`, `headerFooter`, `headerTitle`, `footerUrl`, `capture`, `quality`, and `imageBackground`.
+
+Requests may finish out of order. IDs and output paths must remain unique while requests are active. Send `{"id":"quit-1","command":"quit"}` to drain accepted renders and shut down cleanly. Closing stdin also drains accepted renders, without a final quit response.
+
+The dependency-free Node.js example in `examples/node-streamed-server/` provides a browser form, worker reuse, idle shutdown, and automatic worker restart. See its README for usage.
+
 ### Building
 
 `cef-pdf` should compile without problems with cmake/ninja on Windows (7, x64), Linux (tested on Debian 8.5.0, x64) and Mac OS X (10.11.6) using decent C++11 compiler. In order to build, [CEF build distribution files](http://opensource.spotify.com/cefbuilds/index.html) must be downloaded and placed in some directory, like `/path/to/cef/release` in the example below.

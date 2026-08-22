@@ -1,5 +1,10 @@
 Changelog
 ===
+### Unreleased
+* Added a framed stdin/stdout server mode with concurrent render requests and controlled shutdown.
+* Added standalone Windows and Node.js smoke tests for streamed PDF and image output.
+* Added a dependency-free Node.js web example with idle worker shutdown and automatic restart.
+
 ### 0.3.4.3 (2026-08-08)
 * Added PNG, JPEG, and BMP screenshot output for the CLI and HTTP server.
 * Added full-page and viewport capture, JPEG quality, opaque image backgrounds, and SVG request body support.

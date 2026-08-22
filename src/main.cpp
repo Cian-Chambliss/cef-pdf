@@ -2,6 +2,7 @@
 #include "Server/Server.h"
 #include "Job/Remote.h"
 #include "Job/StdInput.h"
+#include "Stream/StreamedServer.h"
 
 #include <string>
 #include <list>
@@ -38,6 +39,7 @@ void printHelp(std::string name)
     std::cout << "  --url=<url>           URL to load, may be http, file, data, anything supported by Chromium." << std::endl;
     std::cout << "  --file=<path>         File path to load using file:// scheme. May be relative to current directory." << std::endl;
     std::cout << "  --stdin               Read content from standard input until EOF (Unix: Ctrl+D, Windows: Ctrl+Z)." << std::endl;
+    std::cout << "  --streamed            Read framed JSON render requests from stdin and write responses to stdout." << std::endl;
     std::cout << "  --format=<type>       Output format: pdf, png, jpg, jpeg, or bmp." << std::endl;
     std::cout << "  --capture=<mode>      Image capture mode: full (default) or viewport." << std::endl;
     std::cout << "  --quality=<0-100>     JPEG quality. Default is 90." << std::endl;
@@ -389,6 +391,15 @@ int runServer(CefRefPtr<cefpdf::Client> app, CefRefPtr<CefCommandLine> commandLi
     return 0;
 }
 
+int runStreamed(CefRefPtr<cefpdf::Client> app, cefpdf::stream::ProtocolHandle output)
+{
+    cefpdf::stream::StreamedServer server(app, output);
+    server.Start();
+    app->Run();
+    server.Join();
+    return server.GetExitCode();
+}
+
 int main(int argc, char* argv[])
 {
     CefRefPtr<cefpdf::Client> app = new cefpdf::Client();
@@ -399,16 +410,6 @@ int main(int argc, char* argv[])
     CefMainArgs mainArgs(argc, argv);
 #endif // OS_WIN
 
-#if !defined(OS_MACOSX)
-    // Execute the sub-process logic, if any. This will either return immediately for the browser
-    // process or block until the sub-process should exit.
-    int exitCode = app->ExecuteSubProcess(mainArgs);
-    if (exitCode >= 0) {
-        // The sub-process terminated, exit now.
-        return exitCode;
-    }
-#endif // !OS_MACOSX
-
     CefRefPtr<CefCommandLine> commandLine = CefCommandLine::CreateCommandLine();
 
 #if defined(OS_WIN)
@@ -416,6 +417,56 @@ int main(int argc, char* argv[])
 #else
     commandLine->InitFromArgv(argc, argv);
 #endif // OS_WIN
+
+    const bool mainProcess = !commandLine->HasSwitch("type");
+    const bool streamed = mainProcess && commandLine->HasSwitch("streamed") &&
+        !commandLine->HasSwitch("help") && !commandLine->HasSwitch("h") &&
+        !commandLine->HasSwitch("list-sizes");
+    cefpdf::stream::ProtocolHandle protocolOutput =
+#if defined(OS_WIN)
+        nullptr;
+#else
+        -1;
+#endif
+
+    if (streamed) {
+        CefCommandLine::ArgumentList arguments;
+        commandLine->GetArguments(arguments);
+        const char* jobSwitches[] = {
+            "server", "stdin", "url", "file", "format", "capture", "quality",
+            "image-background", "size", "margin", "landscape", "backgrounds",
+            "scale", "delay", "wait-signal", "wait-signal-timeout", "savehtml",
+            "staticonly", "viewwidth", "viewheight", "pageheaderfooter",
+            "headerfooter", "headertitle", "footerurl"
+        };
+        bool hasJobSwitch = false;
+        for (const char* name : jobSwitches) {
+            if (commandLine->HasSwitch(name)) {
+                hasJobSwitch = true;
+                break;
+            }
+        }
+        if (hasJobSwitch || !arguments.empty()) {
+            std::cerr << "ERROR: --streamed cannot be combined with one-shot or HTTP server options" << std::endl;
+            return 1;
+        }
+        std::string error;
+        if (!cefpdf::stream::PrepareProtocolStdout(protocolOutput, error)) {
+            std::cerr << "ERROR: " << error << std::endl;
+            return 1;
+        }
+    }
+
+#if !defined(OS_MACOSX)
+    // Execute the sub-process logic, if any. This will either return immediately for the browser
+    // process or block until the sub-process should exit.
+    int exitCode = app->ExecuteSubProcess(mainArgs);
+    if (exitCode >= 0) {
+        // The sub-process terminated, exit now.
+        if (streamed) cefpdf::stream::CloseProtocolHandle(protocolOutput);
+        return exitCode;
+    }
+#endif // !OS_MACOSX
 
 #if defined(OS_WIN)
     int maxDumpFiles = 5;
@@ -450,5 +501,9 @@ int main(int argc, char* argv[])
     app->Initialize(mainArgs,commandLine);
     app->SetDisableJavaScript(!commandLine->HasSwitch("javascript"));
 
-    return commandLine->HasSwitch("server") ? runServer(app, commandLine) : runJob(app, commandLine);
+    int result = 0;
+    if (streamed) result = runStreamed(app, protocolOutput);
+    else result = commandLine->HasSwitch("server") ? runServer(app, commandLine) : runJob(app, commandLine);
+    if (streamed) cefpdf::stream::CloseProtocolHandle(protocolOutput);
+    return result;
 }

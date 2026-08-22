@@ -43,6 +43,9 @@ public:
     // Stop message loop and/or shutdown CEF
     void Stop();
 
+    // Stop once all accepted jobs have closed their browsers.
+    void RequestIdleStop();
+
     // Add new job to the queue and process it
     void AddJob(CefRefPtr<job::Job> job);
 
@@ -191,6 +194,7 @@ private:
     bool m_contextInitialized;
     bool m_running;
     bool m_stopAfterLastJob;
+    bool m_idleStopRequested;
     int  m_delay;
     bool m_waitForSignal;
     int  m_waitSignalTimeout;

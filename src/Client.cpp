@@ -25,6 +25,7 @@ Client::Client() :
     m_contextInitialized(false),
     m_running(false),
     m_stopAfterLastJob(false),
+    m_idleStopRequested(false),
     m_printHandler(new PrintHandler),
     m_renderHandler(new RenderHandler(m_jobManager)),
     m_renderProcessHandler(new RenderProcessHandler)
@@ -122,10 +123,13 @@ void Client::CreateBrowsers(unsigned int browserCount)
         return;
     }
 
-    while (m_pendingBrowsersCount > 0 && m_browsersCount <= constants::maxProcesses) {
+    while (m_pendingBrowsersCount > 0 && m_browsersCount < constants::maxProcesses) {
         --m_pendingBrowsersCount;
         ++m_browsersCount;
-        CefBrowserHost::CreateBrowser(m_windowInfo, this, "", m_browserSettings, nullptr,nullptr);
+        if (!CefBrowserHost::CreateBrowser(m_windowInfo, this, "", m_browserSettings, nullptr,nullptr)) {
+            --m_browsersCount;
+            m_jobManager->FailNext(job::Job::Status::LOAD_ERROR);
+        }
     }
 }
 
@@ -187,6 +191,9 @@ void Client::OnContextInitialized()
     CefRegisterSchemeHandlerFactory(constants::scheme, "", new SchemeHandlerFactory(m_jobManager));
 
     CreateBrowsers();
+    if (m_idleStopRequested && m_pendingBrowsersCount == 0 && m_browsersCount == 0) {
+        CefQuitMessageLoop();
+    }
 }
 
 // CefClient methods:
@@ -194,6 +201,16 @@ void Client::OnContextInitialized()
 CefRefPtr<CefLifeSpanHandler> Client::GetLifeSpanHandler()
 {
     return this;
+}
+
+void Client::RequestIdleStop()
+{
+    CEF_REQUIRE_UI_THREAD();
+    m_idleStopRequested = true;
+    m_stopAfterLastJob = true;
+    if (m_contextInitialized && m_pendingBrowsersCount == 0 && m_browsersCount == 0) {
+        CefQuitMessageLoop();
+    }
 }
 
 CefRefPtr<CefDisplayHandler> Client::GetDisplayHandler()

@@ -246,6 +246,13 @@ endif()
 # Include the libcef_dll_wrapper target.
 # Comes from the libcef_dll/CMakeLists.txt file in the binary distribution
 # directory.
+if(MSVC)
+    add_definitions(
+        -D_HAS_ITERATOR_DEBUGGING=0
+        -D_ITERATOR_DEBUG_LEVEL=0
+    )
+endif()
+
 add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
 
 set(USE_SANDBOX OFF)
@@ -261,8 +268,6 @@ add_definitions(
     -DASIO_HAS_STD_CHRONO=1
     -DASIO_HAS_STD_SHARED_PTR=1
     -DASIO_HAS_STD_ADDRESSOF=1
-    -D_HAS_ITERATOR_DEBUGGING=0
-    -D_ITERATOR_DEBUG_LEVEL=0
 )
 
 # Include application targets.

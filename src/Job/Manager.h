@@ -21,6 +21,8 @@ public:
 
     std::size_t Queue(CefRefPtr<Job> job);
 
+    void FailNext(const Job::Status& status);
+
     void Assign(CefRefPtr<CefBrowser> browser);
 
     CefRefPtr<CefStreamReader> GetStreamReader(CefRefPtr<CefBrowser> browser);

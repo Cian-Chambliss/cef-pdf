@@ -202,6 +202,7 @@ private:
     std::string m_saveHtmlPath;
     bool m_saveHtmlStaticOnly;
     std::set<int> m_saveHtmlBrowsers;
+    std::set<int> m_metadataBrowsers;
 
     CefRefPtr<CefPrintHandler> m_printHandler;
     CefRefPtr<RenderHandler> m_renderHandler;

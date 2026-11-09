@@ -1,6 +1,7 @@
 Changelog
 ===
 ### Unreleased
+* Added a `metadata` render option (and `--metadata`/`--metadata-output` CLI switches) that evaluates a JavaScript expression after load and returns its JSON result.
 * Added a framed stdin/stdout server mode with concurrent render requests and controlled shutdown.
 * Added standalone Windows and Node.js smoke tests for streamed PDF and image output.
 * Added a dependency-free Node.js web example with idle worker shutdown and automatic restart.

@@ -254,6 +254,55 @@ bool Client::OnProcessMessageReceived(
         return true;
     }
 
+    if (message->GetName() == constants::metadataMessage) {
+        if (frame->IsMain()) {
+            std::string metadata;
+            std::string metadataError;
+            auto args = message->GetArgumentList();
+            if (args && args->GetSize() > 0 && args->GetType(0) == VTYPE_STRING) {
+                metadata = args->GetString(0).ToString();
+            }
+            if (args && args->GetSize() > 1 && args->GetType(1) == VTYPE_STRING) {
+                metadataError = args->GetString(1).ToString();
+            }
+
+            std::clog
+                << "metadata: JavaScript metadata received"
+                << " (bytes=" << metadata.size() << ")"
+                << std::endl;
+
+            if (!metadataError.empty()) {
+                std::cerr << "metadata: renderer warning: " << metadataError << std::endl;
+            }
+
+            CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+            if (job) {
+                job->SetMetadata(metadata);
+                job->SetMetadataError(metadataError);
+                job->SetMetadataCaptured(true);
+
+                if (!job->GetMetadataOutputPath().empty() && !metadata.empty()) {
+                    if (!writeTextFile(job->GetMetadataOutputPath(), metadata)) {
+                        std::cerr
+                            << "metadata: failed to write file: "
+                            << job->GetMetadataOutputPath()
+                            << std::endl;
+                    } else {
+                        std::clog
+                            << "metadata: wrote file: "
+                            << job->GetMetadataOutputPath()
+                            << std::endl;
+                    }
+                }
+            }
+
+            m_metadataBrowsers.erase(browser->GetIdentifier());
+            Process(browser);
+        }
+
+        return true;
+    }
+
     if (message->GetName() == constants::domHtmlMessage) {
         if (frame->IsMain()) {
             std::string html;
@@ -364,6 +413,7 @@ void Client::OnBeforeClose(CefRefPtr<CefBrowser> browser)
 
     m_signalBrowsers.erase(browser->GetIdentifier());
     m_saveHtmlBrowsers.erase(browser->GetIdentifier());
+    m_metadataBrowsers.erase(browser->GetIdentifier());
 
     --m_browsersCount;
 
@@ -391,6 +441,7 @@ void Client::OnLoadStart(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> fram
 
     if (frame->IsMain()) {
         m_saveHtmlBrowsers.erase(browser->GetIdentifier());
+        m_metadataBrowsers.erase(browser->GetIdentifier());
     }
 }
 
@@ -399,6 +450,19 @@ void Client::Process(CefRefPtr<CefBrowser> browser)
     DLOG(INFO) << "Client::Process - rendering output";
 
     CefRefPtr<job::Job> job = m_jobManager->GetJob(browser);
+    if (job && !job->GetMetadataExpression().empty() && !job->IsMetadataCaptured()) {
+        const int browserId = browser->GetIdentifier();
+        if (m_metadataBrowsers.find(browserId) == m_metadataBrowsers.end()) {
+            std::clog << "metadata: requesting JavaScript metadata" << std::endl;
+            m_metadataBrowsers.insert(browserId);
+            CefRefPtr<CefProcessMessage> message =
+                CefProcessMessage::Create(constants::requestMetadataMessage);
+            message->GetArgumentList()->SetString(0, job->GetMetadataExpression());
+            browser->GetMainFrame()->SendProcessMessage(PID_RENDERER, message);
+        }
+        return;
+    }
+
     if (job && !job->GetSaveHtmlPath().empty()) {
         const int browserId = browser->GetIdentifier();
         if (m_saveHtmlBrowsers.find(browserId) == m_saveHtmlBrowsers.end()) {

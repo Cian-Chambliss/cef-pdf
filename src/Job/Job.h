@@ -84,6 +84,16 @@ public:
     void SetSaveHtmlPath(const std::string& path) { m_saveHtmlPath = path; }
     bool GetSaveHtmlStaticOnly() const { return m_saveHtmlStaticOnly; }
     void SetSaveHtmlStaticOnly(bool flag) { m_saveHtmlStaticOnly = flag; }
+    const std::string& GetMetadataExpression() const { return m_metadataExpression; }
+    void SetMetadataExpression(const std::string& value) { m_metadataExpression = value; }
+    const std::string& GetMetadata() const { return m_metadata; }
+    void SetMetadata(const std::string& value) { m_metadata = value; }
+    const std::string& GetMetadataError() const { return m_metadataError; }
+    void SetMetadataError(const std::string& value) { m_metadataError = value; }
+    bool IsMetadataCaptured() const { return m_metadataCaptured; }
+    void SetMetadataCaptured(bool flag) { m_metadataCaptured = flag; }
+    const std::string& GetMetadataOutputPath() const { return m_metadataOutputPath; }
+    void SetMetadataOutputPath(const std::string& value) { m_metadataOutputPath = value; }
 
     void SetPageSize(const CefString& pageSize);
 
@@ -137,6 +147,11 @@ private:
     int m_waitSignalTimeout;
     std::string m_saveHtmlPath;
     bool m_saveHtmlStaticOnly;
+    std::string m_metadataExpression;
+    std::string m_metadata;
+    std::string m_metadataError;
+    bool m_metadataCaptured;
+    std::string m_metadataOutputPath;
     PageSize m_pageSize;
     PageOrientation m_pageOrientation;
     PageMargin m_pageMargin;

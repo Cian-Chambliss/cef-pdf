@@ -59,6 +59,8 @@ void printHelp(std::string name)
     std::cout << "  --wait-signal-timeout=<ms>  Timeout for wait-signal before printing. Default is 0 (no timeout)." << std::endl;
     std::cout << "  --savehtml=<path>     Save generated DOM HTML before creating PDF." << std::endl;
     std::cout << "  --staticonly          Remove <script> tags from saved HTML snapshot." << std::endl;
+    std::cout << "  --metadata=<expr>     Evaluate a JavaScript expression and write its JSON string result." << std::endl;
+    std::cout << "  --metadata-output=<path>  File path for the --metadata JSON result (required with --metadata)." << std::endl;
     std::cout << "  --viewwidth=<px>      Width of viewport. Image default is 1280." << std::endl;
     std::cout << "  --viewheight=<px>     Height of viewport. Image default is 720." << std::endl;
     std::cout << "  --headerfooter        PDF rendered with a page header and footer." << std::endl;
@@ -323,6 +325,24 @@ int runJob(CefRefPtr<cefpdf::Client> app, CefRefPtr<CefCommandLine> commandLine)
             job->SetSaveHtmlStaticOnly(true);
         }
 
+        if (commandLine->HasSwitch("metadata")) {
+            const std::string expression = commandLine->GetSwitchValue("metadata").ToString();
+            if (expression.empty()) {
+                throw std::string("metadata expression is empty");
+            }
+            if (!commandLine->HasSwitch("metadata-output")) {
+                throw std::string("metadata requires metadata-output");
+            }
+            const std::string metadataPath = commandLine->GetSwitchValue("metadata-output").ToString();
+            if (metadataPath.empty()) {
+                throw std::string("metadata-output path is empty");
+            }
+            job->SetMetadataExpression(expression);
+            job->SetMetadataOutputPath(metadataPath);
+        } else if (commandLine->HasSwitch("metadata-output")) {
+            throw std::string("metadata-output requires metadata");
+        }
+
         if (commandLine->HasSwitch("viewwidth")) {
             job->SetViewWidth(parseInteger(commandLine->GetSwitchValue("viewwidth").ToString(), 1, 32767, "viewwidth"));
         }
@@ -436,8 +456,8 @@ int main(int argc, char* argv[])
             "server", "stdin", "url", "file", "format", "capture", "quality",
             "image-background", "size", "margin", "landscape", "backgrounds",
             "scale", "delay", "wait-signal", "wait-signal-timeout", "savehtml",
-            "staticonly", "viewwidth", "viewheight", "pageheaderfooter",
-            "headerfooter", "headertitle", "footerurl"
+            "staticonly", "metadata", "metadata-output", "viewwidth", "viewheight",
+            "pageheaderfooter", "headerfooter", "headertitle", "footerurl"
         };
         bool hasJobSwitch = false;
         for (const char* name : jobSwitches) {

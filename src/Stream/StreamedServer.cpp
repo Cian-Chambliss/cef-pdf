@@ -242,7 +242,7 @@ CefRefPtr<job::Job> BuildJob(CefRefPtr<CefDictionaryValue> request)
     ValidateKeys(options, {"size", "margin", "landscape", "backgrounds", "scale",
         "delay", "waitSignal", "waitSignalTimeout", "saveHtml", "staticOnly",
         "viewWidth", "viewHeight", "headerFooter", "headerTitle", "footerUrl",
-        "capture", "quality", "imageBackground"}, "options");
+        "capture", "quality", "imageBackground", "metadata"}, "options");
 
     const std::string type = Lower(RequiredString(input, "type", "input.type"));
     CefRefPtr<job::Job> job;
@@ -315,6 +315,10 @@ CefRefPtr<job::Job> BuildJob(CefRefPtr<CefDictionaryValue> request)
         if (flag && (!options || !options->HasKey("saveHtml")))
             throw std::string("options.staticOnly requires options.saveHtml");
         job->SetSaveHtmlStaticOnly(flag);
+    }
+    if (OptionalString(options, "metadata", text)) {
+        if (text.empty()) throw std::string("options.metadata is empty");
+        job->SetMetadataExpression(text);
     }
     if (OptionalInteger(options, "viewWidth", 1, 32767, number)) job->SetViewWidth(number);
     if (OptionalInteger(options, "viewHeight", 1, 32767, number)) job->SetViewHeight(number);
@@ -610,6 +614,18 @@ void StreamedServer::OnJobComplete(CefRefPtr<job::Job> job, CefRefPtr<CefValue> 
         output->SetString("format", FormatName(job->GetOutputFormat()));
         output->SetString("mediaType", job::GetOutputMimeType(job->GetOutputFormat()));
         response->GetDictionary()->SetDictionary("output", output);
+        if (!job->GetMetadata().empty()) {
+            CefRefPtr<CefValue> metadata = CefParseJSON(
+                job->GetMetadata().data(), job->GetMetadata().size(), JSON_PARSER_RFC);
+            if (metadata) {
+                response->GetDictionary()->SetValue("metadata", metadata);
+            } else {
+                response->GetDictionary()->SetString("metadata", job->GetMetadata());
+            }
+        }
+        if (!job->GetMetadataError().empty()) {
+            response->GetDictionary()->SetString("metadataError", job->GetMetadataError());
+        }
     } else {
         std::string code = "load_error";
         std::string message = "document failed to load";

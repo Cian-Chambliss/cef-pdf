@@ -124,6 +124,8 @@ try {
 
     $html = [System.IO.File]::ReadAllText((Join-Path $RepoRoot "tests\fixtures\streamed-rich.html"), $Utf8)
     $svg = [System.IO.File]::ReadAllText((Join-Path $RepoRoot "tests\fixtures\streamed-rich.svg"), $Utf8)
+    $metadataHtml = [System.IO.File]::ReadAllText((Join-Path $RepoRoot "tests\fixtures\streamed-metadata.html"), $Utf8)
+    $metadataExpression = "JSON.stringify({ title: document.title, state: document.getElementById('heading').getAttribute('data-state'), width: window.innerWidth, height: window.innerHeight })"
     $requests = @(
         [ordered]@{
             id = "pdf-1"; command = "render"
@@ -143,12 +145,18 @@ try {
             output = [ordered]@{ path = "build/streamed-smoke/windows/page.jpg"; format = "jpeg" }
             options = [ordered]@{ capture = "viewport"; viewWidth = 320; viewHeight = 180; quality = 82; imageBackground = "#ffffff" }
         },
+        [ordered]@{
+            id = "meta-1"; command = "render"
+            input = [ordered]@{ type = "html"; content = $metadataHtml }
+            output = [ordered]@{ path = "build/streamed-smoke/windows/meta.png"; format = "png" }
+            options = [ordered]@{ capture = "viewport"; viewWidth = 200; viewHeight = 120; metadata = $metadataExpression }
+        },
         [ordered]@{ id = "quit-1"; command = "quit" }
     )
 
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $ExePath
-    $startInfo.Arguments = "--streamed --disable-gpu"
+    $startInfo.Arguments = "--streamed --disable-gpu --javascript"
     $startInfo.WorkingDirectory = $RepoRoot
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
@@ -174,8 +182,8 @@ try {
     Assert-True ($Process.ExitCode -eq 0) "cef-pdf exited with code $($Process.ExitCode)`n$($StderrTask.Result)"
 
     $responses = Read-Frames $stdout.ToArray()
-    Assert-True ($responses.Count -eq 4) "expected 4 responses, received $($responses.Count)"
-    $expectedIds = @("pdf-1", "png-1", "jpeg-1", "quit-1")
+    Assert-True ($responses.Count -eq 5) "expected 5 responses, received $($responses.Count)"
+    $expectedIds = @("pdf-1", "png-1", "jpeg-1", "meta-1", "quit-1")
     $seen = @{}
     foreach ($response in $responses) {
         $id = [string]$response.id
@@ -197,7 +205,14 @@ try {
     $jpegSize = Get-JpegDimensions ([System.IO.File]::ReadAllBytes((Join-Path $OutputDir "page.jpg")))
     Assert-True ($jpegSize[0] -eq 320 -and $jpegSize[1] -eq 180) "JPEG dimensions are $($jpegSize[0])x$($jpegSize[1]), expected 320x180"
 
-    Write-Host "streamed smoke passed: PDF, PNG 360x240, JPEG 320x180"
+    $metaResponse = $responses | Where-Object { [string]$_.id -eq "meta-1" } | Select-Object -First 1
+    Assert-True ($null -ne $metaResponse) "metadata response is missing"
+    Assert-True ($null -ne $metaResponse.metadata) "metadata value is missing"
+    Assert-True ([string]$metaResponse.metadata.title -eq "Metadata fixture") "metadata title is $($metaResponse.metadata.title)"
+    Assert-True ([string]$metaResponse.metadata.state -eq "ready") "metadata state is $($metaResponse.metadata.state)"
+    Assert-True ([int]$metaResponse.metadata.width -eq 200 -and [int]$metaResponse.metadata.height -eq 120) "metadata viewport is $($metaResponse.metadata.width)x$($metaResponse.metadata.height), expected 200x120"
+
+    Write-Host "streamed smoke passed: PDF, PNG 360x240, JPEG 320x180, metadata"
     exit 0
 } catch {
     if ($Process) {

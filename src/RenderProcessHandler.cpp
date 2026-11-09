@@ -90,6 +90,73 @@ bool RenderProcessHandler::OnProcessMessageReceived(
     DLOG(INFO) << "RenderProcessHandler::OnProcessMessageReceived";
     CEF_REQUIRE_RENDERER_THREAD();
 
+    if (message->GetName() == constants::requestMetadataMessage) {
+        CefRefPtr<CefFrame> targetFrame = frame;
+        if (!targetFrame && browser) {
+            targetFrame = browser->GetMainFrame();
+        }
+
+        if (!targetFrame || !targetFrame->IsMain()) {
+            DLOG(INFO) << "metadata: skipped JavaScript metadata - no main frame";
+            return true;
+        }
+
+        std::string expression;
+        auto requestArgs = message->GetArgumentList();
+        if (requestArgs && requestArgs->GetSize() > 0 && requestArgs->GetType(0) == VTYPE_STRING) {
+            expression = requestArgs->GetString(0).ToString();
+        }
+
+        std::string metadata;
+        std::string error;
+        if (expression.empty()) {
+            error = "metadata expression is empty";
+        } else {
+            CefRefPtr<CefV8Context> context = targetFrame->GetV8Context();
+            if (!context) {
+                error = "main frame has no V8 context";
+            } else if (context->Enter()) {
+                CefRefPtr<CefV8Value> global = context->GetGlobal();
+                CefRefPtr<CefV8Value> evalFunction =
+                    global ? global->GetValue("eval") : nullptr;
+                if (!evalFunction || !evalFunction->IsFunction()) {
+                    error = "eval is not available";
+                } else {
+                    CefV8ValueList evalArgs;
+                    evalArgs.push_back(CefV8Value::CreateString(expression));
+                    CefRefPtr<CefV8Value> result =
+                        evalFunction->ExecuteFunction(global, evalArgs);
+                    if (evalFunction->HasException()) {
+                        CefRefPtr<CefV8Exception> exception = evalFunction->GetException();
+                        error = "metadata expression threw: ";
+                        error += exception
+                            ? exception->GetMessage().ToString()
+                            : std::string("unknown exception");
+                        evalFunction->ClearException();
+                    } else if (!result) {
+                        error = "metadata expression returned no value";
+                    } else if (!result->IsString()) {
+                        error = "metadata expression must return a string";
+                    } else {
+                        metadata = result->GetStringValue().ToString();
+                    }
+                }
+                context->Exit();
+            } else {
+                error = "failed to enter V8 context";
+            }
+        }
+
+        DLOG(INFO) << "metadata: renderer captured bytes=" << metadata.size();
+
+        CefRefPtr<CefProcessMessage> response =
+            CefProcessMessage::Create(constants::metadataMessage);
+        response->GetArgumentList()->SetString(0, metadata);
+        response->GetArgumentList()->SetString(1, error);
+        targetFrame->SendProcessMessage(PID_BROWSER, response);
+        return true;
+    }
+
     if (message->GetName() == constants::requestDomHtmlMessage) {
         CefRefPtr<CefFrame> targetFrame = frame;
         if (!targetFrame && browser) {

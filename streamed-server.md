@@ -40,6 +40,7 @@
 - Input types: `html`, `svg`, `url`, and `file`.
 - Output path is required. Binary output never shares stdout with protocol responses.
 - Options map to existing PDF, image, viewport, delay, signal, and snapshot settings.
+- `options.metadata` is a JavaScript expression evaluated in the loaded page. It must return a JSON string; the parsed value is returned in the response `metadata` field.
 - Every request requires a string or numeric `id`.
 - Multiple renders may run concurrently, so responses can arrive out of order.
 
@@ -53,9 +54,14 @@ Terminal response:
     "path": "build/streamed-smoke/page.pdf",
     "format": "pdf",
     "mediaType": "application/pdf"
-  }
+  },
+  "metadata": {}
 }
 ```
+
+`metadata` is present only when `options.metadata` was supplied and the expression
+returned a value. If evaluation fails, `metadataError` is returned and the render
+still succeeds.
 
 Errors include stable codes and messages, such as `invalid_request`, `load_error`, `http_error`, `output_error`, and `aborted`.
 

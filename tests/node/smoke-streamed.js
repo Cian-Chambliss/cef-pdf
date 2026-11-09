@@ -93,14 +93,17 @@ async function run() {
   fs.mkdirSync(outputDir, { recursive: true });
   const html = fs.readFileSync(path.join(root, 'tests', 'fixtures', 'streamed-rich.html'), 'utf8');
   const svg = fs.readFileSync(path.join(root, 'tests', 'fixtures', 'streamed-rich.svg'), 'utf8');
+  const metadataHtml = fs.readFileSync(path.join(root, 'tests', 'fixtures', 'streamed-metadata.html'), 'utf8');
+  const metadataExpression = "JSON.stringify({ title: document.title, state: document.getElementById('heading').getAttribute('data-state'), width: window.innerWidth, height: window.innerHeight })";
   const requests = [
     { id: 'pdf-1', command: 'render', input: { type: 'html', content: html }, output: { path: 'build/streamed-smoke/node/page.pdf', format: 'pdf' }, options: { size: 'A4', margin: '10', backgrounds: true } },
     { id: 'png-1', command: 'render', input: { type: 'html', content: html }, output: { path: 'build/streamed-smoke/node/page.png', format: 'png' }, options: { capture: 'viewport', viewWidth: 360, viewHeight: 240 } },
     { id: 'jpeg-1', command: 'render', input: { type: 'svg', content: svg }, output: { path: 'build/streamed-smoke/node/page.jpg', format: 'jpeg' }, options: { capture: 'viewport', viewWidth: 320, viewHeight: 180, quality: 82, imageBackground: '#ffffff' } },
+    { id: 'meta-1', command: 'render', input: { type: 'html', content: metadataHtml }, output: { path: 'build/streamed-smoke/node/meta.png', format: 'png' }, options: { capture: 'viewport', viewWidth: 200, viewHeight: 120, metadata: metadataExpression } },
     { id: 'quit-1', command: 'quit' }
   ];
 
-  const child = spawn(executable, ['--streamed', '--disable-gpu'], { cwd: root, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(executable, ['--streamed', '--disable-gpu', '--javascript'], { cwd: root, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   const stdout = [];
   let stderr = '';
   child.stdout.on('data', chunk => stdout.push(chunk));
@@ -119,8 +122,8 @@ async function run() {
   if (code !== 0) fail(`cef-pdf exited with code ${code}${signal ? ` (${signal})` : ''}\n${stderr}`);
 
   const responses = parseFrames(Buffer.concat(stdout));
-  if (responses.length !== 4) fail(`expected 4 responses, received ${responses.length}`);
-  const expected = new Set(['pdf-1', 'png-1', 'jpeg-1', 'quit-1']);
+  if (responses.length !== 5) fail(`expected 5 responses, received ${responses.length}`);
+  const expected = new Set(['pdf-1', 'png-1', 'jpeg-1', 'meta-1', 'quit-1']);
   const seen = new Set();
   for (const response of responses) {
     if (!expected.has(String(response.id))) fail(`unexpected response id: ${response.id}`);
@@ -138,7 +141,14 @@ async function run() {
   if (png[0] !== 360 || png[1] !== 240) fail(`PNG dimensions are ${png[0]}x${png[1]}, expected 360x240`);
   const jpeg = jpegDimensions(fs.readFileSync(path.join(outputDir, 'page.jpg')));
   if (jpeg[0] !== 320 || jpeg[1] !== 180) fail(`JPEG dimensions are ${jpeg[0]}x${jpeg[1]}, expected 320x180`);
-  console.log('streamed smoke passed: PDF, PNG 360x240, JPEG 320x180');
+  const metaResponse = responses.find(response => String(response.id) === 'meta-1');
+  if (!metaResponse || !metaResponse.metadata) fail('metadata response is missing');
+  if (metaResponse.metadata.title !== 'Metadata fixture') fail(`metadata title is ${metaResponse.metadata.title}`);
+  if (metaResponse.metadata.state !== 'ready') fail(`metadata state is ${metaResponse.metadata.state}`);
+  if (metaResponse.metadata.width !== 200 || metaResponse.metadata.height !== 120) {
+    fail(`metadata viewport is ${metaResponse.metadata.width}x${metaResponse.metadata.height}, expected 200x120`);
+  }
+  console.log('streamed smoke passed: PDF, PNG 360x240, JPEG 320x180, metadata');
 }
 
 run().catch(error => {

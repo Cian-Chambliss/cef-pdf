@@ -32,6 +32,8 @@ Image output is a browser screenshot, not a rasterized or paginated PDF. A `full
       --wait-signal-timeout=<ms> Timeout for wait-signal before printing. Default is 0 (no timeout).
       --savehtml=<path> Save generated DOM HTML before creating PDF.
       --staticonly     Remove <script> tags from saved HTML snapshot.
+      --metadata=<expr> Evaluate a JavaScript expression and write its JSON string result.
+      --metadata-output=<path> File path for the --metadata JSON result (required with --metadata).
       --viewwidth=<px> Width of viewport. Image default is 1280.
       --viewheight=<px> Height of viewport. Image default is 720.
       --dump-file-prefix=<path_prefix> (Windows only) Enable unhandled exception dumps.
@@ -91,6 +93,13 @@ after JavaScript modifies the page) right before the PDF is created.
 Add `--staticonly` together with `--savehtml` to strip `<script>` tags from the
 saved HTML snapshot. Using `--staticonly` without `--savehtml` returns an error.
 
+Use `--metadata=<expr>` together with `--metadata-output=<path>` to evaluate a
+JavaScript expression in the loaded page and write its result to a file. The
+expression must return a JSON string, typically by calling `JSON.stringify(...)`.
+In streamed mode the same expression is passed as `options.metadata` and the
+parsed JSON is returned in the response `metadata` field. Evaluation failures are
+reported through `metadataError` and do not fail the render.
+
 When `--savehtml` is enabled, cef-pdf logs snapshot diagnostics to the console,
 including request/response status, HTML byte count, and write success/failure.
 
@@ -105,6 +114,10 @@ cef-pdf --javascript --wait-signal --savehtml=out.html --url=https://example.com
 
 # Save static-only snapshot (scripts removed) and PDF
 cef-pdf --javascript --wait-signal --savehtml=out.html --staticonly --url=https://example.com out.pdf
+
+# Evaluate JavaScript and write JSON metadata next to the screenshot
+cef-pdf --javascript --metadata="JSON.stringify({title: document.title})" \
+  --metadata-output=page.json --url=https://example.com page.png
 ```
 
 Example:
@@ -172,7 +185,18 @@ Each render request requires a string or numeric `id`, an input, and an output p
 }
 ```
 
-Input types are `html`, `svg`, `url`, and `file`. Formats are `pdf`, `png`, `jpeg`, and `bmp`. The `options` object accepts the CLI equivalents in camel case: `size`, `margin`, `landscape`, `backgrounds`, `scale`, `delay`, `waitSignal`, `waitSignalTimeout`, `saveHtml`, `staticOnly`, `viewWidth`, `viewHeight`, `headerFooter`, `headerTitle`, `footerUrl`, `capture`, `quality`, and `imageBackground`.
+Input types are `html`, `svg`, `url`, and `file`. Formats are `pdf`, `png`, `jpeg`, and `bmp`. The `options` object accepts the CLI equivalents in camel case: `size`, `margin`, `landscape`, `backgrounds`, `scale`, `delay`, `waitSignal`, `waitSignalTimeout`, `saveHtml`, `staticOnly`, `viewWidth`, `viewHeight`, `headerFooter`, `headerTitle`, `footerUrl`, `capture`, `quality`, `imageBackground`, and `metadata`.
+
+`options.metadata` is a JavaScript expression evaluated in the loaded page after the load event (and after `waitSignal` when enabled). It must return a JSON string, for example `"JSON.stringify({ title: document.title })"`. The parsed value is returned as the top-level `metadata` field of the response; evaluation errors are returned as `metadataError` while the render still succeeds.
+
+```json
+{
+  "id": "page-1",
+  "status": "success",
+  "output": { "path": "output/page.png", "format": "png", "mediaType": "image/png" },
+  "metadata": { "title": "My page" }
+}
+```
 
 Requests may finish out of order. IDs and output paths must remain unique while requests are active. Send `{"id":"quit-1","command":"quit"}` to drain accepted renders and shut down cleanly. Closing stdin also drains accepted renders, without a final quit response.
 

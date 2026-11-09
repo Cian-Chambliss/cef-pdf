@@ -48,6 +48,9 @@ namespace constants {
     const std::string waitSignalMessage = "cefpdf.wait_signal";
     const std::string requestDomHtmlMessage = "cefpdf.request_dom_html";
     const std::string domHtmlMessage = "cefpdf.dom_html";
+    // JavaScript metadata message names
+    const std::string requestMetadataMessage = "cefpdf.request_metadata";
+    const std::string metadataMessage = "cefpdf.metadata";
 }
 
 struct PageSize
